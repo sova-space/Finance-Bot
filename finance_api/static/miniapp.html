@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Sova Finance</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: var(--tg-theme-bg-color, #ffffff); --text: var(--tg-theme-text-color, #000000);
+      --hint: var(--tg-theme-hint-color, #999999); --link: var(--tg-theme-link-color, #2678b6);
+      --btn: var(--tg-theme-button-color, #2678b6); --btn-text: var(--tg-theme-button-text-color, #ffffff);
+      --secondary-bg: var(--tg-theme-secondary-bg-color, #f0f0f0);
+      --destructive: var(--tg-theme-destructive-text-color, #cc0000);
+      --radius: 12px; --tab-h: 56px;
+    }
+    html, body { height: 100%; min-height: 100vh; background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: 15px; line-height: 1.4; overscroll-behavior: none; }
+    #app { display: flex; flex-direction: column; min-height: 100vh; min-height: 100dvh; }
+    #tab-bar { position: fixed; bottom: 0; left: 0; right: 0; height: calc(var(--tab-h) + env(safe-area-inset-bottom)); padding-bottom: env(safe-area-inset-bottom); background: var(--secondary-bg); display: flex; border-top: 1px solid rgba(128,128,128,0.15); z-index: 100; }
+    .tab { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; cursor: pointer; user-select: none; color: var(--hint); font-size: 10px; padding: 6px 2px; transition: color 0.15s; -webkit-tap-highlight-color: transparent; }
+    .tab.active { color: var(--btn); }
+    .tab-icon { font-size: 22px; line-height: 1; }
+    #screens { flex: 1; padding-bottom: calc(var(--tab-h) + env(safe-area-inset-bottom) + 8px); overflow-y: auto; -webkit-overflow-scrolling: touch; }
+    .screen { display: none; padding: 16px; animation: fadeIn 0.15s ease; }
+    .screen.active { display: block; }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    h2 { font-size: 20px; font-weight: 700; margin-bottom: 16px; }
+    h3 { font-size: 15px; font-weight: 600; margin-bottom: 8px; }
+    .card { background: var(--secondary-bg); border-radius: var(--radius); padding: 14px; margin-bottom: 10px; }
+    .card-row { display: flex; justify-content: space-between; align-items: center; }
+    .card-label { color: var(--hint); font-size: 13px; margin-top: 2px; }
+    .card-amount { font-size: 17px; font-weight: 600; }
+    .card-amount.negative { color: var(--destructive); }
+    .card-amount.positive { color: #2ecc71; }
+    .progress-track { height: 6px; border-radius: 3px; background: rgba(128,128,128,0.2); overflow: hidden; margin-top: 8px; }
+    .progress-fill { height: 100%; border-radius: 3px; background: var(--btn); transition: width 0.3s ease; }
+    .progress-fill.over { background: var(--destructive); }
+    .progress-fill.done { background: #2ecc71; }
+    .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; background: var(--btn); color: var(--btn-text); border: none; border-radius: var(--radius); padding: 11px 18px; font-size: 15px; font-weight: 600; cursor: pointer; width: 100%; margin-top: 10px; -webkit-tap-highlight-color: transparent; }
+    .btn:active { opacity: 0.85; }
+    .btn-secondary { background: transparent; color: var(--link); border: 1.5px solid var(--btn); margin-top: 6px; }
+    .skeleton { background: linear-gradient(90deg, rgba(128,128,128,0.12) 25%, rgba(128,128,128,0.22) 50%, rgba(128,128,128,0.12) 75%); background-size: 200% 100%; animation: shimmer 1.2s infinite; border-radius: 8px; height: 72px; margin-bottom: 10px; }
+    @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+    .error-msg { color: var(--destructive); font-size: 13px; padding: 8px 0; }
+    .empty-state { text-align: center; color: var(--hint); padding: 32px 16px; }
+    #modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 200; align-items: flex-end; }
+    #modal-overlay.open { display: flex; }
+    #modal-sheet { background: var(--bg); border-radius: 18px 18px 0 0; padding: 20px 16px calc(20px + env(safe-area-inset-bottom)); width: 100%; max-height: 80vh; overflow-y: auto; }
+    #modal-sheet h3 { font-size: 17px; margin-bottom: 14px; }
+    .form-group { margin-bottom: 12px; }
+    .form-group label { display: block; font-size: 13px; color: var(--hint); margin-bottom: 4px; }
+    .form-group input, .form-group select { width: 100%; background: var(--secondary-bg); border: 1px solid rgba(128,128,128,0.2); border-radius: 8px; padding: 10px 12px; font-size: 15px; color: var(--text); outline: none; }
+    .form-group input:focus, .form-group select:focus { border-color: var(--btn); }
+    .balance-total { text-align: center; padding: 16px 0 8px; }
+    .balance-total .amount { font-size: 32px; font-weight: 700; }
+    .balance-total .label { color: var(--hint); font-size: 13px; }
+    .spend-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid rgba(128,128,128,0.1); }
+    .spend-row:last-child { border-bottom: none; }
+    .tag { font-size: 11px; padding: 2px 7px; border-radius: 20px; background: rgba(128,128,128,0.15); color: var(--hint); }
+    .tag.due { background: rgba(204,0,0,0.15); color: var(--destructive); }
+    .tap-action { font-size: 13px; color: var(--link); cursor: pointer; padding: 4px 0; }
+    .section-title { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--hint); margin: 16px 0 8px; }
+  </style>
+</head>
+<body>
+<div id="app">
+  <div id="screens">
+    <div class="screen active" id="screen-home">
+      <h2>Home</h2>
+      <div id="home-content"><div class="skeleton"></div><div class="skeleton"></div></div>
+    </div>
+    <div class="screen" id="screen-pockets">
+      <h2>Pockets</h2>
+      <div id="pockets-content"><div class="skeleton"></div><div class="skeleton"></div></div>
+    </div>
+    <div class="screen" id="screen-debt">
+      <h2>Debt</h2>
+      <div id="debt-content"><div class="skeleton"></div></div>
+      <button class="btn" onclick="openModal('debt')">+ Add debt</button>
+    </div>
+    <div class="screen" id="screen-goals">
+      <h2>Goals</h2>
+      <div id="goals-content"><div class="skeleton"></div></div>
+      <button class="btn" onclick="openModal('goal')">+ Add goal</button>
+    </div>
+    <div class="screen" id="screen-trips">
+      <h2>Trips</h2>
+      <div id="trips-content"><div class="skeleton"></div></div>
+      <button class="btn" onclick="openModal('trip')">+ Add trip</button>
+    </div>
+    <div class="screen" id="screen-buylist">
+      <h2>Buy List</h2>
+      <div id="buylist-content"><div class="skeleton"></div></div>
+      <button class="btn" onclick="openModal('buylist')">+ Add item</button>
+    </div>
+    <div class="screen" id="screen-forecast">
+      <h2>Forecast</h2>
+      <div id="forecast-content"><div class="skeleton"></div></div>
+    </div>
+    <div class="screen" id="screen-settings">
+      <h2>Settings</h2>
+      <div class="card"><p style="color:var(--hint);text-align:center;padding:16px 0;">Settings coming soon</p></div>
+    </div>
+  </div>
+
+  <nav id="tab-bar">
+    <div class="tab active" data-tab="home"><span class="tab-icon">&#127968;</span><span>Home</span></div>
+    <div class="tab" data-tab="pockets"><span class="tab-icon">&#128181;</span><span>Pockets</span></div>
+    <div class="tab" data-tab="debt"><span class="tab-icon">&#129309;</span><span>Debt</span></div>
+    <div class="tab" data-tab="goals"><span class="tab-icon">&#127919;</span><span>Goals</span></div>
+    <div class="tab" data-tab="trips"><span class="tab-icon">&#9992;</span><span>Trips</span></div>
+    <div class="tab" data-tab="buylist"><span class="tab-icon">&#128722;</span><span>Buy List</span></div>
+    <div class="tab" data-tab="forecast"><span class="tab-icon">&#128202;</span><span>Forecast</span></div>
+    <div class="tab" data-tab="settings"><span class="tab-icon">&#9881;</span><span>Settings</span></div>
+  </nav>
+</div>
+
+<div id="modal-overlay" onclick="closeModalIfOutside(event)">
+  <div id="modal-sheet">
+    <h3 id="modal-title"></h3>
+    <div id="modal-body"></div>
+    <button class="btn" id="modal-submit" onclick="submitModal()">Save</button>
+    <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+  </div>
+</div>
+
+<script>
+const tg = window.Telegram.WebApp;
+tg.ready();
+tg.expand();
+
+const API = window.FINANCE_API_BASE || window.location.origin;
+const getHeaders = () => ({ 'Content-Type': 'application/json', 'Authorization': 'tma ' + tg.initData });
+
+function fmt(amount, currency) {
+  try {
+    return new Intl.NumberFormat('uk-UA', { style: 'currency', currency: currency || 'UAH', maximumFractionDigits: 0 }).format(amount);
+  } catch { return (amount || 0).toFixed(0) + ' ' + (currency || ''); }
+}
+
+function fmtDate(iso) {
+  if (!iso) return '';
+  return new Date(iso).toLocaleDateString('uk-UA', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+function clamp(v, min, max) { return Math.min(Math.max(v, min), max); }
+
+async function api(path, opts) {
+  const r = await fetch(API + path, { headers: getHeaders(), ...opts });
+  if (!r.ok) { const t = await r.text().catch(() => r.status); throw new Error(t || r.status); }
+  return r.json();
+}
+
+function haptic() { try { tg.HapticFeedback.impactOccurred('light'); } catch {} }
+function el(id) { return document.getElementById(id); }
+function errorCard(msg) { return `<p class="error-msg">Failed to load: ${msg}</p>`; }
+function escHtml(str) {
+  if (str == null) return '';
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#x27;');
+}
+
+const tabsLoaded = {};
+
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    haptic();
+    const name = tab.dataset.tab;
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    el('screen-' + name).classList.add('active');
+    if (!tabsLoaded[name]) { tabsLoaded[name] = true; loadTab(name); }
+  });
+});
+
+function loadTab(name) {
+  if (name === 'home') loadHome();
+  else if (name === 'pockets') loadPockets();
+  else if (name === 'debt') loadDebt();
+  else if (name === 'goals') loadGoals();
+  else if (name === 'trips') loadTrips();
+  else if (name === 'buylist') loadBuyList();
+  else if (name === 'forecast') loadForecast();
+}
+
+tabsLoaded['home'] = true;
+loadTab('home');
+
+async function loadHome() {
+  const c = el('home-content');
+  try {
+    const [accounts, spending] = await Promise.all([
+      api('/accounts'),
+      api('/transactions/spending?period=this_month&exclude_uncategorized=true'),
+    ]);
+    const byCur = {};
+    accounts.forEach(a => { byCur[a.currency] = (byCur[a.currency] || 0) + a.balance; });
+    let html = Object.entries(byCur).map(([cur, bal]) =>
+      `<div class="balance-total"><div class="amount">${fmt(bal, cur)}</div><div class="label">Total balance</div></div>`
+    ).join('');
+    html += '<div class="section-title">Accounts</div>';
+    if (accounts.length === 0) {
+      html += '<p class="card-label" style="padding:8px 0;">No accounts synced yet</p>';
+    } else {
+      accounts.forEach(a => {
+        html += `<div class="card"><div class="card-row"><div><div style="font-weight:600">${escHtml(a.name)}</div><div class="card-label">${a.type}${a.is_fop ? ' · FOP' : ''}</div></div><div class="card-amount">${fmt(a.balance, a.currency)}</div></div></div>`;
+      });
+    }
+    html += '<div class="section-title">This month spending</div>';
+    const uahSpend = spending.filter(r => r.currency === 'UAH');
+    const totalSpend = uahSpend.reduce((s, r) => s + r.amount, 0);
+    if (spending.length === 0) {
+      html += '<p class="card-label" style="padding:8px 0;">No spending data yet</p>';
+    } else {
+      html += `<div class="card"><div class="card-row"><span>Total spent (UAH)</span><span class="card-amount">${fmt(totalSpend, 'UAH')}</span></div><div style="margin-top:12px">`;
+      [...uahSpend].sort((a, b) => b.amount - a.amount).slice(0, 8).forEach(row => {
+        html += `<div class="spend-row"><span>${escHtml(row.category)}</span><span style="font-weight:500">${fmt(row.amount, row.currency)}</span></div>`;
+      });
+      html += '</div></div>';
+    }
+    c.innerHTML = html;
+  } catch (e) { c.innerHTML = errorCard(e.message); }
+}
+
+async function loadPockets() {
+  const c = el('pockets-content');
+  try {
+    const pockets = await api('/pockets');
+    if (pockets.length === 0) { c.innerHTML = '<div class="empty-state">No pockets yet.</div>'; return; }
+    let html = '';
+    pockets.forEach(p => {
+      const pct = p.monthly_budget > 0 ? clamp(p.balance / p.monthly_budget, 0, 1) : 0;
+      const over = p.balance < 0;
+      html += `<div class="card"><div class="card-row"><div style="font-weight:600">${p.emoji ? escHtml(p.emoji) + ' ' : ''}${escHtml(p.category)}</div><div class="card-amount${over ? ' negative' : ''}">${fmt(p.balance, p.currency)}</div></div><div class="card-label">Budget: ${fmt(p.monthly_budget, p.currency)}</div><div class="progress-track"><div class="progress-fill${over ? ' over' : (pct >= 1 ? ' done' : '')}" style="width:${Math.round(pct*100)}%"></div></div></div>`;
+    });
+    c.innerHTML = html;
+  } catch (e) { c.innerHTML = errorCard(e.message); }
+}
+
+async function loadDebt() {
+  const c = el('debt-content');
+  try {
+    const debts = await api('/debts');
+    if (debts.length === 0) { c.innerHTML = '<div class="empty-state">No open debts. You are free!</div>'; return; }
+    let html = '';
+    debts.forEach(d => {
+      const overdue = d.due_date && new Date(d.due_date) < new Date();
+      html += `<div class="card"><div class="card-row"><div><div style="font-weight:600">${escHtml(d.person)}</div>${d.description ? `<div class="card-label">${escHtml(d.description)}</div>` : ''}${d.due_date ? `<div class="tag${overdue ? ' due' : ''}">Due ${fmtDate(d.due_date)}</div>` : ''}</div><div style="text-align:right"><div class="card-amount">${fmt(d.amount, d.currency)}</div><div class="tap-action" onclick="settleDebt('${escHtml(d.id)}', this)">Mark settled</div></div></div></div>`;
+    });
+    c.innerHTML = html;
+  } catch (e) { c.innerHTML = errorCard(e.message); }
+}
+
+async function settleDebt(id, target) {
+  haptic(); target.textContent = 'Settling…';
+  try {
+    await api('/debts/' + id, { method: 'PATCH', body: JSON.stringify({ settled: true }) });
+    tabsLoaded['debt'] = false; loadDebt();
+  } catch { target.textContent = 'Error — tap again'; }
+}
+
+async function loadGoals() {
+  const c = el('goals-content');
+  try {
+    const goals = await api('/goals');
+    if (goals.length === 0) { c.innerHTML = '<div class="empty-state">No goals yet. Add one to get started.</div>'; return; }
+    let html = '';
+    goals.forEach(g => {
+      const pct = clamp(g.progress || 0, 0, 1);
+      const done = g.achieved_at !== null;
+      html += `<div class="card"><div class="card-row"><div style="font-weight:600">${escHtml(g.name)}</div><div style="text-align:right"><div class="card-amount">${fmt(g.current_amount, g.currency)}</div><div class="card-label">of ${fmt(g.target_amount, g.currency)}</div></div></div><div class="progress-track"><div class="progress-fill${done || pct >= 1 ? ' done' : ''}" style="width:${Math.round(pct*100)}%"></div></div><div class="card-row" style="margin-top:6px"><span class="card-label">${Math.round(pct*100)}%${g.deadline ? ' · ' + fmtDate(g.deadline) : ''}</span><span class="tap-action" onclick="openUpdateGoal('${escHtml(g.id)}',${g.current_amount},'${escHtml(g.currency)}')">Update</span></div></div>`;
+    });
+    c.innerHTML = html;
+  } catch (e) { c.innerHTML = errorCard(e.message); }
+}
+
+function openUpdateGoal(id, current, currency) {
+  haptic();
+  el('modal-title').textContent = 'Update goal amount';
+  el('modal-body').innerHTML = `<div class="form-group"><label>Current amount (${escHtml(currency)})</label><input id="goal-amount" type="number" step="0.01" value="${current}" inputmode="decimal"></div>`;
+  currentModal = { type: 'goal-update', id };
+  el('modal-overlay').classList.add('open');
+}
+
+async function loadTrips() {
+  const c = el('trips-content');
+  try {
+    const trips = await api('/trips');
+    if (trips.length === 0) { c.innerHTML = '<div class="empty-state">No trips yet.</div>'; return; }
+    const today = new Date().toISOString().slice(0, 10);
+    let html = '';
+    trips.forEach(t => {
+      const active = t.start_date <= today && today <= t.end_date;
+      html += `<div class="card"><div class="card-row"><div><div style="font-weight:600">${escHtml(t.name)}</div><div class="card-label">${fmtDate(t.start_date)} — ${fmtDate(t.end_date)}</div></div><div style="text-align:right">${t.budget ? `<div class="card-amount">${fmt(t.budget, t.currency)}</div>` : ''}${active ? '<span class="tag" style="color:var(--btn);background:rgba(38,120,182,0.15)">Active</span>' : ''}</div></div>${active ? `<div class="tap-action" onclick="loadTripSpending('${escHtml(t.id)}','${escHtml(t.name)}',this)">See spending</div>` : ''}<div id="trip-spend-${escHtml(t.id)}"></div></div>`;
+    });
+    c.innerHTML = html;
+  } catch (e) { c.innerHTML = errorCard(e.message); }
+}
+
+async function loadTripSpending(id, name, target) {
+  haptic();
+  const container = el('trip-spend-' + id);
+  container.innerHTML = '<div class="skeleton" style="height:40px;margin-top:8px"></div>';
+  try {
+    const rows = await api('/trips/' + id + '/spending');
+    if (rows.length === 0) { container.innerHTML = '<div class="card-label" style="margin-top:8px">No spending in this trip yet.</div>'; return; }
+    let html = '<div style="margin-top:8px">';
+    rows.filter(r => r.currency === 'UAH').sort((a, b) => b.amount - a.amount).slice(0, 6).forEach(r => {
+      html += `<div class="spend-row"><span>${escHtml(r.category)}</span><span style="font-weight:500">${fmt(r.amount, r.currency)}</span></div>`;
+    });
+    container.innerHTML = html + '</div>';
+    target.style.display = 'none';
+  } catch (e) { container.innerHTML = `<p class="error-msg">Failed: ${e.message}</p>`; }
+}
+
+async function loadBuyList() {
+  const c = el('buylist-content');
+  try {
+    const items = await api('/buy-list');
+    if (items.length === 0) { c.innerHTML = '<div class="empty-state">Nothing on the list. Add something!</div>'; return; }
+    let html = '';
+    items.forEach(item => {
+      html += `<div class="card" id="bl-${escHtml(item.id)}"><div class="card-row"><div><div style="font-weight:600">${escHtml(item.name)}</div>${item.target_price ? `<div class="card-label">${fmt(item.target_price, item.currency || 'UAH')}</div>` : ''}${item.notes ? `<div class="card-label">${escHtml(item.notes)}</div>` : ''}</div><div class="tap-action" onclick="markBought('${escHtml(item.id)}',this)">Bought</div></div></div>`;
+    });
+    c.innerHTML = html;
+  } catch (e) { c.innerHTML = errorCard(e.message); }
+}
+
+async function markBought(id, target) {
+  haptic(); target.textContent = 'Saving…';
+  try {
+    await api('/buy-list/' + id, { method: 'PATCH', body: JSON.stringify({ bought: true }) });
+    const card = el('bl-' + id);
+    if (card) card.style.opacity = '0.4';
+    target.textContent = 'Done!';
+  } catch { target.textContent = 'Error'; }
+}
+
+async function loadForecast() {
+  const c = el('forecast-content');
+  try {
+    const data = await api('/forecast');
+    let html = '';
+    if (data.forecast_by_currency && data.forecast_by_currency.length > 0) {
+      html += '<div class="section-title">Month-end forecast</div>';
+      data.forecast_by_currency.forEach(row => {
+        const positive = row.forecast >= 0;
+        html += `<div class="card"><div class="card-row"><span style="font-weight:600">${row.currency}</span><span class="card-amount ${positive ? 'positive' : 'negative'}">${fmt(row.forecast, row.currency)}</span></div><div style="margin-top:8px"><div class="spend-row"><span class="card-label">Current balance</span><span>${fmt(row.current_balance, row.currency)}</span></div><div class="spend-row"><span class="card-label">Recurring expenses</span><span class="card-amount negative">- ${fmt(row.recurring_expenses, row.currency)}</span></div><div class="spend-row"><span class="card-label">Projected variable</span><span class="card-amount negative">- ${fmt(row.projected_variable_spend, row.currency)}</span></div><div class="spend-row"><span class="card-label">Expected income</span><span class="card-amount positive">+ ${fmt(row.expected_income, row.currency)}</span></div></div></div>`;
+      });
+    }
+    if (!html) html = '<div class="empty-state">No forecast data yet.</div>';
+    c.innerHTML = html;
+  } catch (e) { c.innerHTML = errorCard(e.message); }
+}
+
+let currentModal = null;
+
+function openModal(type) {
+  haptic();
+  currentModal = { type };
+  if (type === 'debt') {
+    el('modal-title').textContent = 'Add debt';
+    el('modal-body').innerHTML = `<div class="form-group"><label>Person</label><input id="d-person" placeholder="Name"></div><div class="form-group"><label>Amount</label><input id="d-amount" type="number" step="0.01" inputmode="decimal" placeholder="0.00"></div><div class="form-group"><label>Currency</label><select id="d-currency"><option>UAH</option><option>USD</option><option>EUR</option></select></div><div class="form-group"><label>Description (optional)</label><input id="d-desc" placeholder="What for?"></div><div class="form-group"><label>Due date (optional)</label><input id="d-due" type="date"></div>`;
+  } else if (type === 'goal') {
+    el('modal-title').textContent = 'Add goal';
+    el('modal-body').innerHTML = `<div class="form-group"><label>Name</label><input id="g-name" placeholder="e.g. New laptop"></div><div class="form-group"><label>Target amount</label><input id="g-target" type="number" step="0.01" inputmode="decimal" placeholder="0.00"></div><div class="form-group"><label>Currency</label><select id="g-currency"><option>UAH</option><option>USD</option><option>EUR</option></select></div><div class="form-group"><label>Deadline (optional)</label><input id="g-deadline" type="date"></div>`;
+  } else if (type === 'trip') {
+    el('modal-title').textContent = 'Add trip';
+    el('modal-body').innerHTML = `<div class="form-group"><label>Name</label><input id="t-name" placeholder="e.g. Weekend in Kyiv"></div><div class="form-group"><label>Budget (optional)</label><input id="t-budget" type="number" step="0.01" inputmode="decimal" placeholder="0.00"></div><div class="form-group"><label>Currency</label><select id="t-currency"><option>UAH</option><option>USD</option><option>EUR</option></select></div><div class="form-group"><label>Start date</label><input id="t-start" type="date"></div><div class="form-group"><label>End date</label><input id="t-end" type="date"></div>`;
+  } else if (type === 'buylist') {
+    el('modal-title').textContent = 'Add item';
+    el('modal-body').innerHTML = `<div class="form-group"><label>Name</label><input id="bl-name" placeholder="e.g. AirPods"></div><div class="form-group"><label>Target price (optional)</label><input id="bl-price" type="number" step="0.01" inputmode="decimal" placeholder="0.00"></div><div class="form-group"><label>Currency</label><select id="bl-currency"><option>UAH</option><option>USD</option><option>EUR</option></select></div><div class="form-group"><label>Notes (optional)</label><input id="bl-notes" placeholder="Any notes"></div>`;
+  }
+  el('modal-overlay').classList.add('open');
+}
+
+function closeModal() { el('modal-overlay').classList.remove('open'); currentModal = null; }
+function closeModalIfOutside(e) { if (e.target === el('modal-overlay')) closeModal(); }
+
+async function submitModal() {
+  if (!currentModal) return;
+  haptic();
+  const btn = el('modal-submit');
+  btn.textContent = 'Saving…'; btn.disabled = true;
+  try {
+    const type = currentModal.type;
+    if (type === 'debt') {
+      const person = el('d-person').value.trim();
+      const amount = parseFloat(el('d-amount').value);
+      if (!person || isNaN(amount)) throw new Error('Person and amount are required');
+      await api('/debts', { method: 'POST', body: JSON.stringify({ person, amount, currency: el('d-currency').value, description: el('d-desc').value.trim() || null, due_date: el('d-due').value || null }) });
+      closeModal(); tabsLoaded['debt'] = false; loadDebt();
+    } else if (type === 'goal') {
+      const name = el('g-name').value.trim();
+      const target = parseFloat(el('g-target').value);
+      if (!name || isNaN(target)) throw new Error('Name and target amount are required');
+      await api('/goals', { method: 'POST', body: JSON.stringify({ name, target_amount: target, currency: el('g-currency').value, deadline: el('g-deadline').value || null }) });
+      closeModal(); tabsLoaded['goals'] = false; loadGoals();
+    } else if (type === 'trip') {
+      const name = el('t-name').value.trim();
+      const start = el('t-start').value, end = el('t-end').value;
+      if (!name || !start || !end) throw new Error('Name, start and end dates are required');
+      const budgetVal = parseFloat(el('t-budget').value);
+      await api('/trips', { method: 'POST', body: JSON.stringify({ name, budget: isNaN(budgetVal) ? null : budgetVal, currency: el('t-currency').value, start_date: start, end_date: end }) });
+      closeModal(); tabsLoaded['trips'] = false; loadTrips();
+    } else if (type === 'buylist') {
+      const name = el('bl-name').value.trim();
+      if (!name) throw new Error('Name is required');
+      const priceVal = parseFloat(el('bl-price').value);
+      await api('/buy-list', { method: 'POST', body: JSON.stringify({ name, target_price: isNaN(priceVal) ? null : priceVal, currency: el('bl-currency').value || null, notes: el('bl-notes').value.trim() || null }) });
+      closeModal(); tabsLoaded['buylist'] = false; loadBuyList();
+    } else if (type === 'goal-update') {
+      const amount = parseFloat(el('goal-amount').value);
+      if (isNaN(amount)) throw new Error('Enter a valid amount');
+      await api('/goals/' + currentModal.id, { method: 'PATCH', body: JSON.stringify({ current_amount: amount }) });
+      closeModal(); tabsLoaded['goals'] = false; loadGoals();
+    }
+  } catch (e) {
+    btn.textContent = 'Error: ' + e.message; btn.disabled = false; return;
+  }
+  btn.textContent = 'Save'; btn.disabled = false;
+}
+</script>
+</body>
+</html>
