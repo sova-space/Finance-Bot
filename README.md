@@ -6,6 +6,7 @@ Finance Bot is Monobank-native, Telegram-native, and AI-guided.
 
 ## Documentation
 
+- [Onboarding](docs/onboarding.md) — self-hosted setup now and public multi-user onboarding path.
 - [Architecture](docs/architecture.md) — product mapping, backend modules, API groups, open-source path.
 - [BotFather setup](docs/botfather.md) — group privacy and Telegram-side bot settings.
 
