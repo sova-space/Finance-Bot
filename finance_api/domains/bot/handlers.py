@@ -113,28 +113,11 @@ def _thread_id(message) -> int | None:
     return getattr(message, "message_thread_id", None)
 
 
-def _is_group_chat(update: Update) -> bool:
-    return bool(update.effective_chat and update.effective_chat.type != "private")
-
-
-def _is_reply_to_bot(message: Message, ctx: ContextTypes.DEFAULT_TYPE) -> bool:
-    reply = getattr(message, "reply_to_message", None)
-    sender = getattr(reply, "from_user", None) if reply else None
-    bot_id = getattr(ctx.bot, "id", None)
-    return bool(sender and bot_id and sender.id == bot_id)
-
-
 def _strip_bot_mention(text: str, ctx: ContextTypes.DEFAULT_TYPE) -> str:
     username = getattr(ctx.bot, "username", None)
     if not username:
         return text.strip()
     return text.replace(f"@{username}", "").strip()
-
-
-def _should_answer_group_text(message: Message, ctx: ContextTypes.DEFAULT_TYPE) -> bool:
-    username = getattr(ctx.bot, "username", None)
-    mentioned = bool(username and f"@{username}" in (message.text or ""))
-    return mentioned or _is_reply_to_bot(message, ctx)
 
 
 async def _edit(query, text: str, **kwargs) -> None:
@@ -466,8 +449,6 @@ async def chat(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     if user is None or message is None or not message.text:
         return
     if user.id != settings.telegram_owner_id:
-        return
-    if _is_group_chat(update) and not _should_answer_group_text(message, ctx):
         return
     prompt = _strip_bot_mention(message.text, ctx)
     if not prompt:

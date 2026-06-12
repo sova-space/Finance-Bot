@@ -14,7 +14,7 @@ To let the finance assistant read normal group messages, disable bot privacy:
 6. Select `Turn off`.
 7. Remove the bot from the group and add it again if Telegram does not apply the change immediately.
 
-With privacy disabled, the app still avoids spam in code: in groups it answers only when you mention `@sova_finance_bot` or reply to the bot.
+With privacy disabled, the app answers plain text from `TELEGRAM_OWNER_ID` in any group topic. It ignores messages from other users. Mentions like `@sova_finance_bot` still work and are stripped before sending the prompt to the LLM.
 
 ## Commands
 

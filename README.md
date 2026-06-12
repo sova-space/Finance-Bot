@@ -66,9 +66,11 @@ curl https://<railway-domain>/health
 
 ## Telegram group setup
 
-For LLM replies in groups, disable bot privacy in BotFather:
+For LLM replies to plain owner messages in groups, disable bot privacy in BotFather:
 
 `@BotFather` → `/mybots` → `@sova_finance_bot` → `Bot Settings` → `Group Privacy` → `Turn off`
+
+After that, the bot answers plain text from the configured owner in any group topic and ignores other users.
 
 Details: [BotFather setup](docs/botfather.md).
 
