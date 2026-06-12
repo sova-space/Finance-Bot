@@ -113,6 +113,30 @@ def _thread_id(message) -> int | None:
     return getattr(message, "message_thread_id", None)
 
 
+def _is_group_chat(update: Update) -> bool:
+    return bool(update.effective_chat and update.effective_chat.type != "private")
+
+
+def _is_reply_to_bot(message: Message, ctx: ContextTypes.DEFAULT_TYPE) -> bool:
+    reply = getattr(message, "reply_to_message", None)
+    sender = getattr(reply, "from_user", None) if reply else None
+    bot_id = getattr(ctx.bot, "id", None)
+    return bool(sender and bot_id and sender.id == bot_id)
+
+
+def _strip_bot_mention(text: str, ctx: ContextTypes.DEFAULT_TYPE) -> str:
+    username = getattr(ctx.bot, "username", None)
+    if not username:
+        return text.strip()
+    return text.replace(f"@{username}", "").strip()
+
+
+def _should_answer_group_text(message: Message, ctx: ContextTypes.DEFAULT_TYPE) -> bool:
+    username = getattr(ctx.bot, "username", None)
+    mentioned = bool(username and f"@{username}" in (message.text or ""))
+    return mentioned or _is_reply_to_bot(message, ctx)
+
+
 async def _edit(query, text: str, **kwargs) -> None:
     """Edit the message in place; silently ignore if content is unchanged."""
     try:
@@ -188,7 +212,7 @@ async def cmd_finance_app(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
 async def balance(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle /balance command."""
     try:
-        accounts = await asyncio.to_thread(get_account_balances)
+        accounts = await asyncio.to_thread(get_account_balances, 0)
         month = await asyncio.to_thread(get_month_cycle_summary, 0)
         await ctx.bot.send_message(
             chat_id=update.effective_chat.id,
@@ -213,7 +237,7 @@ async def callback_balance(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> No
     await query.answer()
     try:
         offset = _callback_offset(query.data)
-        accounts = await asyncio.to_thread(get_account_balances)
+        accounts = await asyncio.to_thread(get_account_balances, offset)
         month = await asyncio.to_thread(get_month_cycle_summary, offset)
         await _edit(
             query,
@@ -443,6 +467,11 @@ async def chat(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         return
     if user.id != settings.telegram_owner_id:
         return
+    if _is_group_chat(update) and not _should_answer_group_text(message, ctx):
+        return
+    prompt = _strip_bot_mention(message.text, ctx)
+    if not prompt:
+        return
     await ctx.bot.send_chat_action(
         chat_id=update.effective_chat.id, action=ChatAction.TYPING
     )
@@ -453,7 +482,7 @@ async def chat(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         parse_mode=PARSE_MODE,
     )
     try:
-        reply = await assistant_answer(update.effective_chat.id, message.text)
+        reply = await assistant_answer(update.effective_chat.id, prompt)
     except Exception as e:
         log.error("assistant_failed", error=str(e))
         reply = f"❌ Error: {code(e)}"

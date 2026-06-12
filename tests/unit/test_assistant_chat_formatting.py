@@ -40,6 +40,7 @@ async def test_chat_edits_placeholder_message_with_html_reply(monkeypatch):
     update = MagicMock()
     update.effective_user.id = 123
     update.effective_chat.id = 456
+    update.effective_chat.type = "private"
     update.message.text = "relabel nova as travel"
     update.message.message_thread_id = 789
 

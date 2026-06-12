@@ -63,6 +63,7 @@ def test_balance_formats_configured_month():
                 "name": "Monobank Black UAH",
                 "currency": "UAH",
                 "balance": 10000,
+                "spent": 30000,
                 "is_fop": False,
                 "synced_at": None,
             }
@@ -78,7 +79,8 @@ def test_balance_formats_configured_month():
     assert "<b>Month · June</b>" in text
     assert "5 Jun-4 Jul" in text
     assert "Breakdown" not in text
-    assert "Black" not in text
+    assert "Black" in text
+    assert "10,000 ₴ of 40,000 ₴ · spent 75%" in text
 
 
 def test_income_summary_uses_short_heading():
@@ -117,8 +119,9 @@ def test_income_summary_uses_short_heading():
     assert text.startswith("💰 <b>Income</b>")
     assert "Income ·" not in text
     assert "Received" not in text
-    assert "🇺🇸" in text
-    assert "$120" in text
+    assert "Source" in text
+    assert "$120" not in text
+    assert "Balance now" not in text
     assert "<pre>" in text
 
 

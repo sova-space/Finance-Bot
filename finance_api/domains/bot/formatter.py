@@ -83,6 +83,18 @@ def _short_name(name: str, currency: str) -> str:
     return name.replace("Monobank ", "").replace(f" {currency}", "").strip()
 
 
+def _usage_note(balance: float, spent: float, currency: str) -> str:
+    """Return "balance of balance+spent · spent pct" for a card."""
+    available = balance + spent
+    if available <= 0 or spent <= 0:
+        return _fmt_amount(round(balance), currency)
+    pct = round(spent / available * 100)
+    return (
+        f"{_fmt_amount(round(balance), currency)}"
+        f" of {_fmt_amount(round(available), currency)} · spent {pct}%"
+    )
+
+
 _CURRENCY_FLAG: dict[str, str] = {
     "UAH": "🇺🇦",
     "USD": "🇺🇸",
@@ -138,12 +150,19 @@ def format_balance(
         for currency, group in by_currency.items()
     }
 
-    # Totals section — always visible
     total_lines: list[str] = []
-    for currency, _group in by_currency.items():
+    card_lines: list[str] = []
+    for currency, group in by_currency.items():
         flag = _CURRENCY_FLAG.get(currency, "💱")
         total_str = _fmt_amount(group_totals[currency], currency)
         total_lines.append(f"{flag} {currency}  {bold(total_str)}")
+        for account in sorted(
+            group, key=lambda item: _short_name(item["name"], currency)
+        ):
+            name = _short_name(account["name"], currency)
+            spent = float(account.get("spent") or 0)
+            balance = float(account.get("balance") or 0)
+            card_lines.append(f"{flag} {name}  {_usage_note(balance, spent, currency)}")
 
     latest_sync = max(
         (a["synced_at"] for a in accounts if a.get("synced_at")),
@@ -160,6 +179,7 @@ def format_balance(
         f"💳 {bold('Mono')}\n"
         + cycle_block
         + "\n".join(total_lines)
+        + ("\n\n" + pre("\n".join(card_lines)) if card_lines else "")
         + income_block
         + f"\n\n🕐 {_fmt_ago(latest_sync)}"
     )
@@ -202,7 +222,6 @@ def format_income_summary(summary: dict[str, Any]) -> str:
     for _source, currency, t in all_txns:
         income_by_cur[currency] = income_by_cur.get(currency, 0) + t["amount"]
 
-    balances = summary.get("balances", {})
     has_both = (
         rate and _FOP_CURRENCY in income_by_cur and _BASE_CURRENCY in income_by_cur
     )
@@ -277,37 +296,7 @@ def format_income_summary(summary: dict[str, Any]) -> str:
             )
         received_block = "\n".join(received_lines)
 
-    # Balance: "X of TOTAL · spent Y%", skip negligible balances
-    NEGLIGIBLE = {"UAH": 50, "USD": 5, "EUR": 5, "GBP": 5}
-    balance_rows: list[tuple[str, str, str]] = []
-    for currency in sorted(income_by_cur):
-        bal = balances.get(currency, 0)
-        if bal < NEGLIGIBLE.get(currency, 5):
-            continue
-        if currency == _BASE_CURRENCY and rate and _FOP_CURRENCY in income_by_cur:
-            received = (
-                income_by_cur.get(_BASE_CURRENCY, 0)
-                + income_by_cur.get(_FOP_CURRENCY, 0) * rate
-            )
-        else:
-            received = income_by_cur[currency]
-        flag = _CURRENCY_FLAG.get(currency, "💱")
-        pct = round((received - bal) / received * 100) if received else 0
-        balance_rows.append((
-            flag,
-            _fmt_amount(round(bal), currency),
-            f"of {_fmt_amount(round(received), currency)} · spent {pct}%",
-        ))
-
-    body = f"💰 {bold('Income')}\n{received_block}"
-    if balance_rows:
-        bal_w = max(len(row[1]) for row in balance_rows)
-        balance_table = "\n".join(
-            f"{flag} {balance:>{bal_w}}  {note}" for flag, balance, note in balance_rows
-        )
-        body += f"\n\n💳 {bold('Balance now')}\n" + pre(balance_table)
-
-    return body
+    return f"💰 {bold('Income')}\n{received_block}"
 
 
 def format_month_report(income: dict[str, Any], spending: dict[str, Any]) -> str:

@@ -98,18 +98,40 @@ def _salary_anchored_start(calendar_start: date, session: Session) -> date:
     return first or calendar_start
 
 
-def get_account_balances() -> list[dict[str, Any]]:
-    """Return current balances for all visible (non-hidden) synced accounts."""
+def get_account_balances(offset: int = 0) -> list[dict[str, Any]]:
+    """Return current balances and selected-month spending for visible accounts."""
+    start, end = _calendar_month_for_offset(offset)
     with Session(engine) as session:
         accounts = session.exec(
             select(Account).where(Account.hidden == False)  # noqa: E712
         ).all()
+        spending_rows = session.exec(
+            select(Transaction.account_id, func.sum(Transaction.amount))
+            .where(Transaction.date >= start)
+            .where(Transaction.date <= end)
+            .where(Transaction.amount < 0)
+            .where(Transaction.is_pending == False)  # noqa: E712
+            .where(
+                or_(
+                    Transaction.category.is_(None),  # type: ignore[union-attr]
+                    Transaction.category.notin_(  # type: ignore[union-attr]
+                        [cat.CASHBACK, cat.COUPLE_TRANSFER]
+                    ),
+                )
+            )
+            .group_by(Transaction.account_id)
+        ).all()
+        spent_by_account = {
+            str(account_id): round(abs(total or 0), 2)
+            for account_id, total in spending_rows
+        }
         return [
             {
                 "account_id": str(a.id),
                 "name": a.name,
                 "currency": a.currency,
                 "balance": a.balance,
+                "spent": spent_by_account.get(str(a.id), 0),
                 "type": a.account_type,
                 "is_fop": a.is_fop,
                 "synced_at": a.synced_at.isoformat() if a.synced_at else None,
