@@ -20,7 +20,7 @@ Technical pipeline:
 - Explain
 - Notify
 
-See `PRODUCT.md` and `ARCHITECTURE.md`.
+See `docs/architecture.md`.
 
 ## Repo structure
 
@@ -37,7 +37,7 @@ tests/         — pytest tests
 - Never commit secrets, tokens, database URLs, `.env`, or personal data.
 - Keep this repo self-hostable and open-source friendly.
 - Required config should fail loud unless explicitly optional.
-- Current app is single-user; multi-user SaaS requires the `ARCHITECTURE.md` refactor first.
+- Current app is single-user; multi-user SaaS requires the `docs/architecture.md` refactor first.
 - Use Python 3.12+, uv, ruff, pytest.
 
 ## Workflow

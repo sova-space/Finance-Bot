@@ -25,7 +25,9 @@ Ingest → Store → Categorize → Calculate → Explain → Notify
 
 ## Backend modules
 
-Current code lives under `finance_api/`. The long-term module structure should converge to:
+Keep the import package named `finance_api`. It is explicit and already wired through imports, Alembic, Docker, Gunicorn, tests, and deploy config. Do not rename the package to `src`; if this repo later adopts a `src/` layout, use `src/finance_api`.
+
+Current code lives under `finance_api/`. The long-term domain structure should converge to:
 
 ```text
 finance_api
