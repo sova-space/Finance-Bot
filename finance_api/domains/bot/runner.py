@@ -29,6 +29,7 @@ from finance_api.domains.bot.handlers import (
     callback_sync,
     chat,
     cmd_finance_app,
+    start,
     sync,
 )
 
@@ -37,6 +38,7 @@ def create_bot(token: str) -> Application:
     """Create the bot Application with all command handlers registered."""
     app = Application.builder().token(token).build()
     handler_map = {
+        "start": start,
         "finance_app": cmd_finance_app,
         "finance": balance,
         "balance": balance,

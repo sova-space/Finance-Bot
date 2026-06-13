@@ -17,6 +17,7 @@ from finance_api.core.config import get_settings
 log = structlog.get_logger(__name__)
 
 BOT_COMMANDS: list[BotCommand] = [
+    BotCommand("start", "Set up Finance Bot"),
     BotCommand("finance", "Open finance"),
 ]
 

@@ -15,6 +15,7 @@ from finance_api.domains.assistant.loop import answer as assistant_answer
 from finance_api.domains.bot.formatter import (
     format_balance,
     format_month_report,
+    format_onboarding_message,
     format_spending_category,
     format_spending_summary,
     format_subscriptions,
@@ -113,6 +114,20 @@ def _thread_id(message) -> int | None:
     return getattr(message, "message_thread_id", None)
 
 
+def _extra_allowed_user_ids() -> set[int]:
+    ids: set[int] = set()
+    for raw in settings.telegram_allowed_user_ids.split(","):
+        raw = raw.strip()
+        if raw:
+            ids.add(int(raw))
+    return ids
+
+
+def is_allowed_user(user_id: int) -> bool:
+    """Return True if this Telegram user can use the finance bot."""
+    return user_id == settings.telegram_owner_id or user_id in _extra_allowed_user_ids()
+
+
 def _strip_bot_mention(text: str, ctx: ContextTypes.DEFAULT_TYPE) -> str:
     username = getattr(ctx.bot, "username", None)
     if not username:
@@ -190,6 +205,17 @@ async def cmd_finance_app(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
             text=text,
             reply_markup=keyboard,
         )
+
+
+async def start(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle /start onboarding."""
+    if update.message is None:
+        return
+    await update.message.reply_text(
+        format_onboarding_message(),
+        parse_mode=PARSE_MODE,
+        reply_markup=_main_keyboard(0),
+    )
 
 
 async def balance(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
@@ -448,7 +474,7 @@ async def chat(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     message = update.message
     if user is None or message is None or not message.text:
         return
-    if user.id != settings.telegram_owner_id:
+    if not is_allowed_user(user.id):
         return
     prompt = _strip_bot_mention(message.text, ctx)
     if not prompt:

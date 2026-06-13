@@ -86,7 +86,18 @@ BotFather:
 4. Add bot to the group.
 5. If privacy was changed after adding the bot, remove and add the bot again.
 
-The app answers plain text only from `TELEGRAM_OWNER_ID`; other users are ignored in the current single-user mode.
+The app answers plain text only from `TELEGRAM_OWNER_ID` and comma-separated
+`TELEGRAM_ALLOWED_USER_IDS`; other users are ignored in the current shared-data
+single-deployment mode. Use `TELEGRAM_ALLOWED_USER_IDS` for a spouse/co-owner who
+should get the same AI assistant and shared finance data.
+
+## Spouse/co-owner onboarding
+
+1. Add their Telegram numeric user ID to `TELEGRAM_ALLOWED_USER_IDS`.
+2. Ask them to open the bot and send `/start`.
+3. The bot shows the Monobank token link: <https://api.monobank.ua/>.
+4. After the token is configured on the deployment, run `/sync`.
+5. They can ask normal AI questions; answers use the same synced finance data.
 
 ## 2. Public multi-user onboarding
 

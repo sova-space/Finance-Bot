@@ -7,6 +7,8 @@ from typing import Any
 from finance_api.bot.telegram_fmt import bold, code, italic, pre
 from finance_api.domains.transactions import categories as cat
 
+MONOBANK_TOKEN_URL = "https://api.monobank.ua/"
+
 CATEGORY_EMOJI: dict[str, str] = {
     cat.FOOD_AND_DRINK: "🍔",
     cat.GROCERIES: "🛒",
@@ -134,6 +136,34 @@ def _format_cycle_line(month: dict[str, Any] | None) -> str:
     return f"📅 {label} · {range_label}"
 
 
+def _format_spent_totals(accounts: list[dict[str, Any]]) -> str:
+    totals: dict[str, float] = defaultdict(float)
+    for account in accounts:
+        spent = float(account.get("spent") or 0)
+        if spent > 0:
+            totals[account["currency"]] += spent
+    if not totals:
+        return ""
+    lines = [bold("Spent")]
+    for currency, amount in sorted(totals.items()):
+        flag = _CURRENCY_FLAG.get(currency, "💱")
+        lines.append(f"{flag} {currency}  {_fmt_amount(round(amount), currency)}")
+    return "\n".join(lines)
+
+
+def format_onboarding_message() -> str:
+    """Return a concise first-run setup message for a spouse/co-owner."""
+    return (
+        f"👋 {bold('Finance Bot')}\n\n"
+        "I can read your Monobank data, answer with AI, and show Balance/Spending.\n\n"
+        f"1. Open {MONOBANK_TOKEN_URL}\n"
+        "2. Log in and copy your personal token\n"
+        f"3. Send it to Nazar privately, then run {code('/sync')}\n\n"
+        "After sync, just ask normal questions like: "
+        f"{code('how much did I spend on groceries this month?')}"
+    )
+
+
 def format_balance(
     accounts: list[dict[str, Any]], month: dict[str, Any] | None = None
 ) -> str:
@@ -175,10 +205,13 @@ def format_balance(
         income_text = format_income_summary(month["income"])
         if income_text:
             income_block = f"\n\n{income_text}"
+    spent_block = _format_spent_totals(accounts)
+    spent_block = f"\n\n{spent_block}" if spent_block else ""
     return (
         f"💳 {bold('Mono')}\n"
         + cycle_block
         + "\n".join(total_lines)
+        + spent_block
         + ("\n\n" + pre("\n".join(card_lines)) if card_lines else "")
         + income_block
         + f"\n\n🕐 {_fmt_ago(latest_sync)}"

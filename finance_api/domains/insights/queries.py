@@ -857,6 +857,113 @@ def _spending_summary_between(start: date, end: date) -> dict[str, Any]:
     }
 
 
+_STAT_SYMBOLS = {"UAH": "₴", "USD": "$", "EUR": "€", "GBP": "£"}
+_PREFIX_STAT_CURRENCIES = {"USD", "EUR", "GBP"}
+
+
+def _format_stat_amount(amount: float, currency: str) -> str:
+    text = f"{amount:,.0f}" if amount == int(amount) else f"{amount:,.2f}"
+    symbol = _STAT_SYMBOLS.get(currency, currency)
+    if currency in _PREFIX_STAT_CURRENCIES:
+        return f"{symbol}{text}"
+    return f"{text} {symbol}"
+
+
+def _totals_by_currency_between(
+    start: date, end: date, condition: Any
+) -> dict[str, float]:
+    with Session(engine) as session:
+        rows = session.exec(
+            select(Transaction.currency, func.sum(Transaction.amount))
+            .where(Transaction.date >= start)
+            .where(Transaction.date <= end)
+            .where(Transaction.is_pending == False)  # noqa: E712
+            .where(condition)
+            .group_by(Transaction.currency)
+        ).all()
+    return {currency: abs(round(total or 0, 2)) for currency, total in rows}
+
+
+def get_daily_statistics(day: date | None = None) -> dict[str, Any]:
+    """Return income/expense totals and expense categories for one day."""
+    target = day or date.today()
+    label = "Today" if target == date.today() else target.strftime("%-d %b")
+    return {
+        "period_label": label,
+        "period_start": target.isoformat(),
+        "period_end": target.isoformat(),
+        "expenses_by_currency": _totals_by_currency_between(
+            target, target, Transaction.amount < 0
+        ),
+        "income_by_currency": _totals_by_currency_between(
+            target, target, Transaction.amount > 0
+        ),
+        "category_rows": get_spending_by_category(start=target, end=target),
+    }
+
+
+def get_month_statistics(offset: int = 0) -> dict[str, Any]:
+    """Return income/expense totals and expense categories for a calendar month."""
+    start, end = _calendar_month_for_offset(offset)
+    return {
+        "period_label": start.strftime("%B %Y"),
+        "period_start": start.isoformat(),
+        "period_end": end.isoformat(),
+        "expenses_by_currency": _totals_by_currency_between(
+            start, end, Transaction.amount < 0
+        ),
+        "income_by_currency": _totals_by_currency_between(
+            start, end, Transaction.amount > 0
+        ),
+        "category_rows": get_spending_by_category(start=start, end=end),
+    }
+
+
+def _format_total_lines(title: str, totals: dict[str, float]) -> list[str]:
+    if not totals:
+        return [f"{title}: 0"]
+    return [
+        f"{title}: {_format_stat_amount(amount, currency)}"
+        for currency, amount in sorted(totals.items())
+    ]
+
+
+def format_statistics_report(report: dict[str, Any]) -> str:
+    """Format daily/monthly stats in compact Telegram HTML."""
+    category_rows = sorted(
+        report.get("category_rows", []), key=lambda row: row["amount"], reverse=True
+    )
+    expense_totals = report.get("expenses_by_currency", {})
+    income_totals = report.get("income_by_currency", {})
+    lines = [f"📊 <b>{report['period_label']}</b>", "", "- Expenses"]
+    if category_rows:
+        totals_for_pct: dict[str, float] = {}
+        for row in category_rows:
+            currency = row["currency"]
+            totals_for_pct[currency] = totals_for_pct.get(currency, 0) + row["amount"]
+        for row in category_rows:
+            total = totals_for_pct[row["currency"]]
+            pct = round(row["amount"] / total * 100) if total else 0
+            amount = _format_stat_amount(row["amount"], row["currency"])
+            lines.append(f"{amount} ({pct}%) — {row['category']}")
+    else:
+        lines.append("0")
+    lines.extend(["", "+ Income"])
+    if income_totals:
+        for currency, amount in sorted(income_totals.items()):
+            lines.append(_format_stat_amount(amount, currency))
+    else:
+        lines.append("0")
+    lines.append("")
+    lines.extend(_format_total_lines("Total expenses", expense_totals))
+    lines.extend(_format_total_lines("Total income", income_totals))
+    shared = sorted(set(expense_totals) | set(income_totals))
+    for currency in shared:
+        total = income_totals.get(currency, 0) - expense_totals.get(currency, 0)
+        lines.append(f"Total: {_format_stat_amount(total, currency)}")
+    return "\n".join(lines)
+
+
 def get_month_cycle_summary(offset: int = 0) -> dict[str, Any]:
     """Return one selected calendar month summary.
 

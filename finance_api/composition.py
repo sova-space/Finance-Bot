@@ -11,7 +11,10 @@ from fastapi import FastAPI
 
 from finance_api.core.config import settings
 from finance_api.core.logging.setup import configure_logging
-from finance_api.domains.bot.notifications import set_notification_context
+from finance_api.domains.bot.notifications import (
+    send_notification,
+    set_notification_context,
+)
 from finance_api.domains.pockets.jobs import reset_pockets_job
 from finance_api.domains.sync.monobank import run_sync
 from finance_api.routers import (
@@ -34,6 +37,31 @@ from finance_api.routers.forecast import (
 )
 
 log = structlog.get_logger(__name__)
+
+
+def _send_daily_statistics() -> None:
+    from finance_api.domains.insights.queries import (
+        format_statistics_report,
+        get_daily_statistics,
+    )
+
+    send_notification(
+        format_statistics_report(get_daily_statistics()),
+        thread_id=settings.telegram_finance_topic_id,
+    )
+
+
+def _send_month_statistics() -> None:
+    from finance_api.domains.insights.queries import (
+        format_statistics_report,
+        get_month_statistics,
+    )
+
+    send_notification(
+        format_statistics_report(get_month_statistics()),
+        thread_id=settings.telegram_finance_topic_id,
+    )
+
 
 _DESCRIPTION = """
 Finance API — a thin wrapper around Monobank that syncs your bank data to
@@ -84,6 +112,18 @@ def create_app() -> FastAPI:
         reset_pockets_job,
         trigger=CronTrigger(day=1, hour=0, minute=5),
         id="pocket_monthly_reset",
+        replace_existing=True,
+    )
+    scheduler.add_job(
+        _send_daily_statistics,
+        trigger=CronTrigger(hour=22, minute=0),
+        id="daily_statistics",
+        replace_existing=True,
+    )
+    scheduler.add_job(
+        _send_month_statistics,
+        trigger=CronTrigger(day="last", hour=22, minute=5),
+        id="month_statistics",
         replace_existing=True,
     )
 

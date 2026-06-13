@@ -28,6 +28,7 @@ class Settings(BaseSettings):
 
     telegram_bot_token: str | None = None
     telegram_owner_id: int
+    telegram_allowed_user_ids: str = ""
     telegram_chat_id: int | None = None
     telegram_finance_topic_id: int | None = None
 
