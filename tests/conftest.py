@@ -11,6 +11,7 @@ from sqlmodel import Session, SQLModel, create_engine
 # Must be set before any finance_api imports so Settings() does not fail.
 os.environ.setdefault("DATABASE_URL", "sqlite:///:memory:")
 os.environ.setdefault("MONOBANK_TOKEN", "test_token")
+os.environ.setdefault("APP_SECRET", "test-app-secret")
 os.environ.setdefault("ENVIRONMENT", "test")
 os.environ.setdefault("TELEGRAM_OWNER_ID", "12345")
 
@@ -26,6 +27,7 @@ from finance_api.domains.pockets.models import Pocket, PocketTransfer  # noqa: F
 from finance_api.domains.rules.models import TransactionRule  # noqa: F401
 from finance_api.domains.transactions.models import Transaction
 from finance_api.domains.trips.models import Trip  # noqa: F401
+from finance_api.domains.users.models import User  # noqa: F401
 
 
 def _make_test_engine():
@@ -63,13 +65,17 @@ def session(monkeypatch) -> Generator[Session, None, None]:
     """
     import finance_api.domains.budgets.queries as b_module
     import finance_api.domains.insights.queries as q_module
+    import finance_api.domains.rules.queries as rules_module
     import finance_api.domains.sync.monobank as sync_module
+    import finance_api.domains.users.queries as users_module
 
     test_engine = _make_test_engine()
 
     monkeypatch.setattr(q_module, "engine", test_engine)
     monkeypatch.setattr(b_module, "engine", test_engine)
+    monkeypatch.setattr(rules_module, "engine", test_engine)
     monkeypatch.setattr(sync_module, "engine", test_engine)
+    monkeypatch.setattr(users_module, "engine", test_engine)
 
     with Session(test_engine) as s:
         yield s

@@ -15,8 +15,9 @@ class Transaction(SQLModel, table=True):
     __tablename__ = "transactions"
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    user_id: uuid.UUID | None = Field(default=None, foreign_key="users.id", index=True)
     account_id: uuid.UUID = Field(foreign_key="accounts.id", index=True)
-    monobank_id: str = Field(unique=True, index=True)
+    monobank_id: str = Field(index=True)
 
     amount: float
     currency: str

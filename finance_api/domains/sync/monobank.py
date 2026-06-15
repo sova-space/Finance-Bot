@@ -101,16 +101,20 @@ def _get_or_create_account(
     currency: str,
     account_type: str,
     balance: float,
+    user_id: uuid.UUID | None = None,
 ) -> Account:
     """Get existing account or create new one with the given parameters."""
     existing = session.exec(
-        select(Account).where(Account.monobank_id == mono_id)
+        select(Account)
+        .where(Account.monobank_id == mono_id)
+        .where(Account.user_id == user_id)
     ).first()
     if existing:
         existing.balance = balance
         session.add(existing)
         return existing
     account = Account(
+        user_id=user_id,
         monobank_id=mono_id,
         name=name,
         currency=currency,
@@ -124,7 +128,11 @@ def _get_or_create_account(
 
 
 def _parse_tx(
-    tx: dict[str, Any], account_id: uuid.UUID, currency: str, is_fop: bool = False
+    tx: dict[str, Any],
+    account_id: uuid.UUID,
+    currency: str,
+    is_fop: bool = False,
+    user_id: uuid.UUID | None = None,
 ) -> Transaction | None:
     """Build a Transaction from Monobank API dict; None if amount is zero."""
     amount_minor = tx.get("amount", 0)
@@ -148,6 +156,7 @@ def _parse_tx(
         extra["exchange_rate"] = round(abs(amount_minor) / abs(op_amount), 6)
 
     return Transaction(
+        user_id=user_id,
         account_id=account_id,
         monobank_id=monobank_id,
         amount=amount,
@@ -165,7 +174,10 @@ def _parse_tx(
 
 
 def _parse_cashback(
-    tx: dict[str, Any], account_id: uuid.UUID, currency: str
+    tx: dict[str, Any],
+    account_id: uuid.UUID,
+    currency: str,
+    user_id: uuid.UUID | None = None,
 ) -> Transaction | None:
     """Build a cashback Transaction if Monobank tx has cashbackAmount > 0."""
     cashback = tx.get("cashbackAmount", 0)
@@ -175,6 +187,7 @@ def _parse_cashback(
     tx_date = datetime.fromtimestamp(tx["time"], tz=UTC).date()
     description = tx.get("description") or "Monobank"
     return Transaction(
+        user_id=user_id,
         account_id=account_id,
         monobank_id=f"monobank_cashback_{tx['id']}",
         amount=cashback / 100.0,
@@ -196,7 +209,12 @@ def _build_chunks(from_ts: int, to_ts: int) -> list[tuple[int, int]]:
     return chunks
 
 
-def _sync_account(client: MonobankClient, acc: dict[str, Any], now_ts: int) -> int:
+def _sync_account(
+    client: MonobankClient,
+    acc: dict[str, Any],
+    now_ts: int,
+    user_id: uuid.UUID | None = None,
+) -> int:
     """Sync one account. Returns number of new transactions imported."""
     mono_id = acc["id"]
     currency = CURRENCY_MAP.get(acc.get("currencyCode", 980), "UAH")
@@ -206,7 +224,7 @@ def _sync_account(client: MonobankClient, acc: dict[str, Any], now_ts: int) -> i
 
     with Session(engine) as session:
         account = _get_or_create_account(
-            session, mono_id, name, currency, acc_type, balance
+            session, mono_id, name, currency, acc_type, balance, user_id=user_id
         )
         session.commit()
         account_id = account.id
@@ -241,16 +259,20 @@ def _sync_account(client: MonobankClient, acc: dict[str, Any], now_ts: int) -> i
             existing_by_id: dict[str, Transaction] = {
                 t.monobank_id: t
                 for t in session.exec(
-                    select(Transaction).where(
+                    select(Transaction)
+                    .where(
                         Transaction.monobank_id.in_(monobank_ids + cashback_ids)  # type: ignore[attr-defined]
                     )
+                    .where(Transaction.user_id == user_id)
                 ).all()
             }
 
             new_expense_txs: list[Transaction] = []
             new_tx_notifications: list[dict[str, Any]] = []
             for tx in txs:
-                parsed = _parse_tx(tx, account_id, currency, is_fop=is_fop)
+                parsed = _parse_tx(
+                    tx, account_id, currency, is_fop=is_fop, user_id=user_id
+                )
                 if not parsed:
                     continue
                 existing = existing_by_id.get(parsed.monobank_id)
@@ -269,7 +291,7 @@ def _sync_account(client: MonobankClient, acc: dict[str, Any], now_ts: int) -> i
                     existing.notes = parsed.notes
                     session.add(existing)
 
-                cb = _parse_cashback(tx, account_id, currency)
+                cb = _parse_cashback(tx, account_id, currency, user_id=user_id)
                 if cb and cb.monobank_id not in existing_by_id:
                     session.add(cb)
                     imported += 1
@@ -296,7 +318,9 @@ def _sync_account(client: MonobankClient, acc: dict[str, Any], now_ts: int) -> i
     # Mark account synced_at only after all chunks complete
     with Session(engine) as session:
         updated_account: Account | None = session.exec(
-            select(Account).where(Account.monobank_id == mono_id)
+            select(Account)
+            .where(Account.monobank_id == mono_id)
+            .where(Account.user_id == user_id)
         ).first()
         if updated_account:
             updated_account.synced_at = _now()
@@ -330,6 +354,28 @@ def _mark_stale_syncs(session: Session) -> None:
         log.warning("stale_sync_marked_failed", run_id=str(run.id))
 
 
+def _run_sync_with_token(token: str, user_id: uuid.UUID | None = None) -> int:
+    total_imported = 0
+    with MonobankClient(token=token) as client:
+        info = client.get_client_info()
+        log.info(
+            "mono_client",
+            name=info.get("name"),
+            user_id=str(user_id) if user_id else None,
+        )
+
+        accounts = [
+            a for a in info.get("accounts", []) if a.get("type") in SYNC_ACCOUNT_TYPES
+        ]
+        now_ts = int(_now().timestamp())
+
+        for acc in accounts:
+            imported = _sync_account(client, acc, now_ts, user_id=user_id)
+            total_imported += imported
+            log.info("account_synced", account_id=acc["id"], imported=imported)
+    return total_imported
+
+
 def run_sync() -> int:
     """Sync all Monobank accounts. Returns number of transactions imported."""
     if not _sync_lock.acquire(blocking=False):
@@ -348,22 +394,7 @@ def run_sync() -> int:
     error_msg: str | None = None
 
     try:
-        with MonobankClient(token=settings.monobank_token) as client:
-            info = client.get_client_info()
-            log.info("mono_client", name=info.get("name"))
-
-            accounts = [
-                a
-                for a in info.get("accounts", [])
-                if a.get("type") in SYNC_ACCOUNT_TYPES
-            ]
-            now_ts = int(_now().timestamp())
-
-            for acc in accounts:
-                imported = _sync_account(client, acc, now_ts)
-                total_imported += imported
-                log.info("account_synced", account_id=acc["id"], imported=imported)
-
+        total_imported = _run_sync_with_token(settings.monobank_token)
         log.info("sync_complete", tx_imported=total_imported)
 
     except Exception as exc:
@@ -382,5 +413,22 @@ def run_sync() -> int:
             sync_run.error = error_msg
             session.add(sync_run)
             session.commit()
-
     return total_imported
+
+
+def run_sync_for_user(user_id: uuid.UUID) -> int:
+    """Sync one hosted user's Monobank accounts using their stored token."""
+    from finance_api.domains.users.queries import get_monobank_token
+
+    token = get_monobank_token(user_id)
+    if not token:
+        raise ValueError("Monobank token not configured")
+    if not _sync_lock.acquire(blocking=False):
+        log.info("sync_skipped", reason="already_running", user_id=str(user_id))
+        return 0
+    try:
+        imported = _run_sync_with_token(token, user_id=user_id)
+        log.info("user_sync_complete", user_id=str(user_id), tx_imported=imported)
+        return imported
+    finally:
+        _sync_lock.release()

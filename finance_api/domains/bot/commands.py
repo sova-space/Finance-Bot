@@ -18,6 +18,7 @@ log = structlog.get_logger(__name__)
 
 BOT_COMMANDS: list[BotCommand] = [
     BotCommand("start", "Set up Finance Bot"),
+    BotCommand("token", "Save Monobank token"),
     BotCommand("finance", "Open finance"),
 ]
 

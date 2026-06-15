@@ -7,6 +7,7 @@ chat-completions API.
 import asyncio
 import json
 from datetime import date
+from uuid import UUID
 
 import httpx
 import structlog
@@ -226,15 +227,20 @@ _SYSTEM = (
 )
 
 
-async def _dispatch_tool(name: str, tool_input: dict) -> str:
+async def _dispatch_tool(
+    name: str, tool_input: dict, user_id: UUID | None = None
+) -> str:
     """Run the named read-only query and return a JSON string result."""
     try:
+        if user_id is not None and name not in {"get_balances", "get_spending"}:
+            return "Error: this tool is not user-scoped yet"
         if name == "get_balances":
-            result = await asyncio.to_thread(get_account_balances)
+            result = await asyncio.to_thread(get_account_balances, 0, user_id)
         elif name == "get_spending":
             result = await asyncio.to_thread(
                 get_spending_by_category,
                 period=tool_input.get("period", "this_month"),
+                user_id=user_id,
             )
         elif name == "get_monthly_trend":
             result = await asyncio.to_thread(
@@ -329,7 +335,7 @@ async def _chat(messages: list[dict]) -> dict:
     return resp.json()["choices"][0]["message"]
 
 
-async def answer(chat_id: int, text: str) -> str:
+async def answer(chat_id: int, text: str, user_id: UUID | None = None) -> str:
     """Run one conversational turn for `chat_id` and return the reply text.
 
     Keeps a short rolling history per chat (in-memory; resets on redeploy) so
@@ -361,7 +367,7 @@ async def answer(chat_id: int, text: str) -> str:
                 tool_input = json.loads(function.get("arguments") or "{}")
             except json.JSONDecodeError:
                 tool_input = {}
-            result = await _dispatch_tool(name, tool_input)
+            result = await _dispatch_tool(name, tool_input, user_id=user_id)
             log.info("assistant_tool_called", tool=name)
             messages.append({
                 "role": "tool",

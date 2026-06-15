@@ -98,15 +98,22 @@ def _salary_anchored_start(calendar_start: date, session: Session) -> date:
     return first or calendar_start
 
 
-def get_account_balances(offset: int = 0) -> list[dict[str, Any]]:
+def get_account_balances(
+    offset: int = 0, user_id: UUID | None = None
+) -> list[dict[str, Any]]:
     """Return current balances and selected-month spending for visible accounts."""
     start, end = _calendar_month_for_offset(offset)
     with Session(engine) as session:
-        accounts = session.exec(
-            select(Account).where(Account.hidden == False)  # noqa: E712
-        ).all()
-        spending_rows = session.exec(
+        account_query = select(Account).where(Account.hidden == False)  # noqa: E712
+        if user_id is not None:
+            account_query = account_query.where(Account.user_id == user_id)
+        accounts = session.exec(account_query).all()
+        account_ids = [account.id for account in accounts]
+        if not account_ids:
+            return []
+        spending_query = (
             select(Transaction.account_id, func.sum(Transaction.amount))
+            .where(Transaction.account_id.in_(account_ids))
             .where(Transaction.date >= start)
             .where(Transaction.date <= end)
             .where(Transaction.amount < 0)
@@ -120,7 +127,8 @@ def get_account_balances(offset: int = 0) -> list[dict[str, Any]]:
                 )
             )
             .group_by(Transaction.account_id)
-        ).all()
+        )
+        spending_rows = session.exec(spending_query).all()
         spent_by_account = {
             str(account_id): round(abs(total or 0), 2)
             for account_id, total in spending_rows
@@ -168,6 +176,13 @@ def get_visible_account_count() -> int:
         ).one()
 
 
+def _account_ids_for_user(session: Session, user_id: UUID | None) -> list[UUID] | None:
+    if user_id is None:
+        return None
+    rows = session.exec(select(Account.id).where(Account.user_id == user_id)).all()
+    return list(rows)
+
+
 def get_spending_by_category(
     period: str = "this_month",
     account_id: UUID | None = None,
@@ -175,6 +190,7 @@ def get_spending_by_category(
     exclude_uncategorized: bool = False,
     start: date | None = None,
     end: date | None = None,
+    user_id: UUID | None = None,
 ) -> list[dict[str, Any]]:
     """Return total spending grouped by category and currency for the given period.
 
@@ -202,6 +218,11 @@ def get_spending_by_category(
             .where(Transaction.amount < 0)
             .where(Transaction.is_pending == False)  # noqa: E712
         )
+        user_account_ids = _account_ids_for_user(session, user_id)
+        if user_account_ids is not None:
+            if not user_account_ids:
+                return []
+            q = q.where(Transaction.account_id.in_(user_account_ids))
         if account_id:
             q = q.where(Transaction.account_id == account_id)
         if mode is not None:

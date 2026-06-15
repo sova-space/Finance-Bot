@@ -103,7 +103,9 @@ Before public SaaS usage, change to multi-user:
 
 1. Add users table.
 2. Store Monobank token per user, encrypted at rest.
-3. Scope accounts, transactions, budgets, goals, trips, and rules by `user_id`.
+3. Scope accounts and transactions by `user_id` for hosted sync; continue the
+   same pattern for budgets, goals, trips, rules, pockets, and forecasts before
+   public launch.
 4. Replace `TELEGRAM_OWNER_ID` hard gate with registered-user access.
 5. Add `/start` onboarding and Monobank token linking.
 6. Add `/delete_my_data` and export path.

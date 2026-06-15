@@ -158,7 +158,8 @@ def format_onboarding_message() -> str:
         "I can read your Monobank data, answer with AI, and show Balance/Spending.\n\n"
         f"1. Open {MONOBANK_TOKEN_URL}\n"
         "2. Log in and copy your personal token\n"
-        f"3. Send it to Nazar privately, then run {code('/sync')}\n\n"
+        f"3. Send {code('/token <token>')} here in private chat\n"
+        f"4. Run {code('/sync')}\n\n"
         "After sync, just ask normal questions like: "
         f"{code('how much did I spend on groceries this month?')}"
     )

@@ -12,7 +12,8 @@ class Account(SQLModel, table=True):
     __tablename__ = "accounts"
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    monobank_id: str = Field(unique=True, index=True)
+    user_id: uuid.UUID | None = Field(default=None, foreign_key="users.id", index=True)
+    monobank_id: str = Field(index=True)
     name: str
     currency: str
     account_type: str

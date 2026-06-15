@@ -31,7 +31,11 @@ from finance_api.domains.insights.queries import (
     get_sync_health,
     get_visible_account_count,
 )
-from finance_api.domains.sync.monobank import run_sync
+from finance_api.domains.sync.monobank import run_sync, run_sync_for_user
+from finance_api.domains.users.queries import (
+    get_or_create_user_by_telegram_id,
+    save_monobank_token,
+)
 
 log = structlog.get_logger(__name__)
 
@@ -123,9 +127,19 @@ def _extra_allowed_user_ids() -> set[int]:
     return ids
 
 
-def is_allowed_user(user_id: int) -> bool:
+def is_allowed_user(user_id: int, chat_type: str | None = None) -> bool:
     """Return True if this Telegram user can use the finance bot."""
+    if chat_type == "private":
+        return True
     return user_id == settings.telegram_owner_id or user_id in _extra_allowed_user_ids()
+
+
+def _token_from_message(text: str) -> str | None:
+    """Extract a Monobank token only from explicit /token commands."""
+    parts = text.strip().split(maxsplit=1)
+    if len(parts) == 2 and parts[0].split("@", 1)[0] == "/token":
+        return parts[1].strip()
+    return None
 
 
 def _strip_bot_mention(text: str, ctx: ContextTypes.DEFAULT_TYPE) -> str:
@@ -148,11 +162,14 @@ _MONO_RATE_LIMIT_S = 62  # Monobank allows one request per 62 s per token
 _sync_running = False
 
 
-async def _sync_then_edit(message: Message) -> None:
+async def _sync_then_edit(message: Message, user_id=None) -> None:
     """Background task: run sync and edit message with the final status."""
     global _sync_running
     try:
-        await asyncio.to_thread(run_sync)
+        if user_id is None:
+            await asyncio.to_thread(run_sync)
+        else:
+            await asyncio.to_thread(run_sync_for_user, user_id)
         status = await asyncio.to_thread(get_sync_health)
         try:
             await message.edit_text(
@@ -167,14 +184,31 @@ async def _sync_then_edit(message: Message) -> None:
         _sync_running = False
 
 
-async def _do_sync(message: Message) -> None:
+async def _user_id_for_private_chat(update: Update):
+    if (
+        update.effective_chat is not None
+        and update.effective_user is not None
+        and update.effective_chat.type == "private"
+    ):
+        try:
+            user = await asyncio.to_thread(
+                get_or_create_user_by_telegram_id, update.effective_user.id
+            )
+        except Exception:
+            log.exception("private_user_lookup_failed")
+            return None
+        return user.id
+    return None
+
+
+async def _do_sync(message: Message, user_id=None) -> None:
     """For /sync command — reply with status message, edit it when done."""
-    n = await asyncio.to_thread(get_visible_account_count)
+    n = 1 if user_id is not None else await asyncio.to_thread(get_visible_account_count)
     est_min = max(1, round(n * _MONO_RATE_LIMIT_S / 60))
     sent = await message.reply_text(
         f"🔄 Syncing…  ~{est_min} min", parse_mode=PARSE_MODE
     )
-    _run_background(_sync_then_edit(sent))
+    _run_background(_sync_then_edit(sent, user_id=user_id))
 
 
 async def cmd_finance_app(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
@@ -218,10 +252,36 @@ async def start(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     )
 
 
+async def save_token(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    """Save encrypted Monobank token for a private hosted user."""
+    user = update.effective_user
+    message = update.message
+    chat = update.effective_chat
+    if user is None or message is None or chat is None or not message.text:
+        return
+    if chat.type != "private":
+        await message.reply_text("Send /token in private chat.", parse_mode=PARSE_MODE)
+        return
+    mono_token = _token_from_message(message.text)
+    if not mono_token:
+        await message.reply_text(
+            f"Use {code('/token <monobank-token>')}", parse_mode=PARSE_MODE
+        )
+        return
+    app_user = await asyncio.to_thread(get_or_create_user_by_telegram_id, user.id)
+    await asyncio.to_thread(save_monobank_token, app_user.id, mono_token)
+    await message.reply_text(
+        f"✅ Token saved. Now run {code('/sync')}.",
+        parse_mode=PARSE_MODE,
+        reply_markup=_main_keyboard(0),
+    )
+
+
 async def balance(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle /balance command."""
     try:
-        accounts = await asyncio.to_thread(get_account_balances, 0)
+        user_id = await _user_id_for_private_chat(update)
+        accounts = await asyncio.to_thread(get_account_balances, 0, user_id)
         month = await asyncio.to_thread(get_month_cycle_summary, 0)
         await ctx.bot.send_message(
             chat_id=update.effective_chat.id,
@@ -425,7 +485,10 @@ async def callback_subs(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
 async def sync(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle /sync command."""
     try:
-        await _do_sync(update.message)
+        if update.message is None:
+            return
+        user_id = await _user_id_for_private_chat(update)
+        await _do_sync(update.message, user_id=user_id)
     except Exception as e:
         log.error("sync_failed", error=str(e))
         await update.message.reply_text(
@@ -472,9 +535,10 @@ async def chat(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     """
     user = update.effective_user
     message = update.message
-    if user is None or message is None or not message.text:
+    chat = update.effective_chat
+    if user is None or message is None or chat is None or not message.text:
         return
-    if not is_allowed_user(user.id):
+    if not is_allowed_user(user.id, chat_type=chat.type):
         return
     prompt = _strip_bot_mention(message.text, ctx)
     if not prompt:
@@ -489,7 +553,11 @@ async def chat(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         parse_mode=PARSE_MODE,
     )
     try:
-        reply = await assistant_answer(update.effective_chat.id, prompt)
+        user_id = await _user_id_for_private_chat(update)
+        if user_id is None:
+            reply = await assistant_answer(chat.id, prompt)
+        else:
+            reply = await assistant_answer(chat.id, prompt, user_id=user_id)
     except Exception as e:
         log.error("assistant_failed", error=str(e))
         reply = f"❌ Error: {code(e)}"

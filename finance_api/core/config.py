@@ -20,6 +20,7 @@ class Settings(BaseSettings):
     db_max_overflow: int = 10
 
     monobank_token: str
+    app_secret: str | None = None
     sync_interval_hours: int = 1
     monobank_fetch_days: int = 32
 
