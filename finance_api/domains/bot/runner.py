@@ -29,6 +29,7 @@ from finance_api.domains.bot.handlers import (
     callback_sync,
     chat,
     cmd_finance_app,
+    delete_my_data,
     save_token,
     start,
     sync,
@@ -41,6 +42,7 @@ def create_bot(token: str) -> Application:
     handler_map = {
         "start": start,
         "token": save_token,
+        "delete_my_data": delete_my_data,
         "finance_app": cmd_finance_app,
         "finance": balance,
         "balance": balance,

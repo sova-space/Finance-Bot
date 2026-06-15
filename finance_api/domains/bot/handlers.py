@@ -33,6 +33,7 @@ from finance_api.domains.insights.queries import (
 )
 from finance_api.domains.sync.monobank import run_sync, run_sync_for_user
 from finance_api.domains.users.queries import (
+    delete_user_data,
     get_or_create_user_by_telegram_id,
     save_monobank_token,
 )
@@ -274,6 +275,27 @@ async def save_token(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         f"✅ Token saved. Now run {code('/sync')}.",
         parse_mode=PARSE_MODE,
         reply_markup=_main_keyboard(0),
+    )
+
+
+async def delete_my_data(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    """Delete hosted private user's finance data."""
+    user = update.effective_user
+    message = update.message
+    chat = update.effective_chat
+    if user is None or message is None or chat is None:
+        return
+    if chat.type != "private":
+        await message.reply_text(
+            "Send /delete_my_data in private chat.", parse_mode=PARSE_MODE
+        )
+        return
+    app_user = await asyncio.to_thread(get_or_create_user_by_telegram_id, user.id)
+    deleted = await asyncio.to_thread(delete_user_data, app_user.id)
+    await message.reply_text(
+        "✅ Deleted your finance data. "
+        f"Accounts: {deleted['accounts']}, transactions: {deleted['transactions']}.",
+        parse_mode=PARSE_MODE,
     )
 
 

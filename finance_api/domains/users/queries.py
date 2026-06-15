@@ -2,10 +2,12 @@
 
 import uuid
 
-from sqlmodel import Session, select
+from sqlmodel import Session, delete, select
 
 from finance_api.core.crypto import decrypt_text, encrypt_text
 from finance_api.core.db.engine import engine
+from finance_api.domains.accounts.models import Account
+from finance_api.domains.transactions.models import Transaction
 from finance_api.domains.users.models import User
 
 
@@ -42,3 +44,23 @@ def get_monobank_token(user_id: uuid.UUID) -> str | None:
         if user is None or not user.encrypted_monobank_token:
             return None
         return decrypt_text(user.encrypted_monobank_token)
+
+
+def delete_user_data(user_id: uuid.UUID) -> dict[str, int]:
+    """Delete one hosted user's private finance data and user record."""
+    with Session(engine) as session:
+        tx_result = session.exec(
+            delete(Transaction).where(Transaction.user_id == user_id)
+        )
+        account_result = session.exec(delete(Account).where(Account.user_id == user_id))
+        user = session.get(User, user_id)
+        user_deleted = 0
+        if user is not None:
+            session.delete(user)
+            user_deleted = 1
+        session.commit()
+        return {
+            "transactions": tx_result.rowcount or 0,
+            "accounts": account_result.rowcount or 0,
+            "user": user_deleted,
+        }

@@ -460,13 +460,16 @@ def _selected_rules(session: Session, rule_type: str) -> list[tuple[str, str]]:
     return list(rows)
 
 
-def get_spending_summary(offset: int = 0) -> dict[str, Any]:
+def get_spending_summary(
+    offset: int = 0, user_id: UUID | None = None
+) -> dict[str, Any]:
     """Return UAH spending by category for the selected calendar month."""
     start, end = _calendar_month_for_offset(offset)
     with Session(engine) as session:
-        personal_ids = session.exec(
-            select(Account.id).where(Account.is_fop == False)  # noqa: E712
-        ).all()
+        personal_query = select(Account.id).where(Account.is_fop == False)  # noqa: E712
+        if user_id is not None:
+            personal_query = personal_query.where(Account.user_id == user_id)
+        personal_ids = session.exec(personal_query).all()
         summary_rows = session.exec(
             select(
                 Transaction.category,
@@ -498,11 +501,7 @@ def get_spending_summary(offset: int = 0) -> dict[str, Any]:
                 Transaction.date,
                 Transaction.currency,
             )
-            .where(
-                Transaction.account_id.in_(
-                    select(Account.id).where(Account.is_fop == False)  # noqa: E712
-                )
-            )
+            .where(Transaction.account_id.in_(personal_ids))
             .where(Transaction.amount < 0)
             .where(Transaction.date >= start)
             .where(Transaction.date <= end)

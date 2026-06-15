@@ -108,7 +108,7 @@ Before public SaaS usage, change to multi-user:
    public launch.
 4. Replace `TELEGRAM_OWNER_ID` hard gate with registered-user access.
 5. Add `/start` onboarding and Monobank token linking.
-6. Add `/delete_my_data` and export path.
+6. Add `/delete_my_data`.
 7. Add privacy policy and security docs.
 8. Keep self-host mode via env vars for private deployments.
 
