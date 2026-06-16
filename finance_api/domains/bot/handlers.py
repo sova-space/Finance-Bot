@@ -400,7 +400,8 @@ def _uncategorized_text(tx: dict | None) -> str:
     return (
         "❓ <b>What is this transaction?</b>\n"
         f"<code>{tx['description']}</code>\n"
-        f"{_amount_label(tx)} · {tx['date']}"
+        f"{_amount_label(tx)} · {tx['date']}\n"
+        "Tap a category or just type what it was."
     )
 
 
@@ -411,7 +412,7 @@ def _uncategorized_keyboard(tx: dict | None) -> InlineKeyboardMarkup:
         [
             InlineKeyboardButton(
                 label,
-                callback_data=f"{UNCATEGORIZED_CALLBACK}:{category}",
+                callback_data=(f"{UNCATEGORIZED_CALLBACK}:{tx['id']}:{category}"),
             )
             for label, category in _REVIEW_CATEGORIES[i : i + 2]
         ]
@@ -599,8 +600,12 @@ async def callback_uncategorized(
         if data == UNCATEGORIZED_CALLBACK:
             await _show_uncategorized(query, state)
             return
-        category = data.split(":", 1)[1]
-        tx_id = state.get("uncategorized_tx_id")
+        parts = data.split(":", 2)
+        if len(parts) == 3:
+            _, tx_id, category = parts
+        else:
+            category = data.split(":", 1)[1]
+            tx_id = state.get("uncategorized_tx_id")
         if not tx_id:
             await _show_uncategorized(query, state)
             return
