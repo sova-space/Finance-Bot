@@ -10,6 +10,7 @@ FROM python:3.12-slim AS runtime
 WORKDIR /app
 COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
 COPY --from=builder /usr/local/bin /usr/local/bin
+RUN pip install --no-cache-dir "tzlocal>=5.2"
 COPY . .
 RUN chmod +x entrypoint.sh
 
