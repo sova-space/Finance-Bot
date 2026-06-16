@@ -81,7 +81,9 @@ def label_transaction_by_id(
         return _tx_payload(tx)
 
 
-def label_latest_uncategorized(description: str, category: str) -> dict[str, Any]:
+def label_latest_uncategorized(
+    description: str, category: str, notes: str | None = None
+) -> dict[str, Any]:
     """Label the newest uncategorized transaction whose description matches."""
     if category not in cat.ALL:
         raise ValueError(f"Unknown category '{category}'. Valid: {sorted(cat.ALL)}")
@@ -100,8 +102,9 @@ def label_latest_uncategorized(description: str, category: str) -> dict[str, Any
         tx = next((t for t in candidates if needle in t.description.lower()), None)
         if tx is None:
             raise ValueError(f"No uncategorized transaction matches '{description}'")
-
         tx.category = category
+        if notes:
+            tx.notes = notes.strip()
         if tx.amount < 0 and tx.mode is None:
             tx.mode = modes.SOLO
         session.add(tx)

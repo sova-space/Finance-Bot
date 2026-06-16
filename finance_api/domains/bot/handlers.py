@@ -157,6 +157,15 @@ def _strip_bot_mention(text: str, ctx: ContextTypes.DEFAULT_TYPE) -> str:
     return text.replace(f"@{username}", "").strip()
 
 
+def _uncategorized_description_from_reply(message) -> str | None:
+    reply = getattr(message, "reply_to_message", None)
+    text = getattr(reply, "text", None) or getattr(reply, "caption", None)
+    if not text or "What is this transaction" not in text:
+        return None
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
+    return lines[1] if len(lines) > 1 else None
+
+
 async def _edit(query, text: str, **kwargs) -> None:
     """Edit the message in place; silently ignore if content is unchanged."""
     try:
@@ -418,6 +427,12 @@ def _uncategorized_keyboard(tx: dict | None) -> InlineKeyboardMarkup:
         ]
         for i in range(0, len(_REVIEW_CATEGORIES), 2)
     ]
+    rows.append([
+        InlineKeyboardButton(
+            "✍️ Type label",
+            callback_data=f"{UNCATEGORIZED_CALLBACK}:{tx['id']}:__text__",
+        )
+    ])
     rows.append([InlineKeyboardButton("← Back", callback_data=f"{BALANCE_CALLBACK}:0")])
     return InlineKeyboardMarkup(rows)
 
@@ -609,6 +624,14 @@ async def callback_uncategorized(
         if not tx_id:
             await _show_uncategorized(query, state)
             return
+        if category == "__text__":
+            state["uncategorized_tx_id"] = tx_id
+            await _edit(
+                query,
+                "✍️ Type what it was. Example: <code>це алкоголь #бар</code>",  # noqa: RUF001
+                parse_mode=PARSE_MODE,
+            )
+            return
         await asyncio.to_thread(label_transaction_by_id, tx_id, category)
         await _show_uncategorized(query, state)
     except Exception as e:
@@ -680,10 +703,16 @@ async def chat(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     selected_tx_id = None
     if isinstance(ctx.user_data, dict):
         selected_tx_id = ctx.user_data.get("uncategorized_tx_id")
+    reply_description = _uncategorized_description_from_reply(message)
     if selected_tx_id:
         prompt = (
             "Selected uncategorized transaction id: "
             f"{selected_tx_id}\nUser answer: {prompt}"
+        )
+    elif reply_description:
+        prompt = (
+            "Selected uncategorized transaction description: "
+            f"{reply_description}\nUser answer: {prompt}"
         )
     await ctx.bot.send_chat_action(
         chat_id=update.effective_chat.id, action=ChatAction.TYPING

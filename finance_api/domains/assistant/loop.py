@@ -140,6 +140,7 @@ _TOOL_DEFS: list[dict] = [
             "properties": {
                 "description": {"type": "string"},
                 "category": {"type": "string"},
+                "notes": {"type": "string"},
             },
             "required": ["description", "category"],
         },
@@ -219,8 +220,9 @@ _SYSTEM = (
     "at numbers.\n\n"
     "Rules:\n"
     "- Always call get_balances first before answering any money question, so "
-    "you have current context. If accounts come back empty, ask the user to tap "
-    "the 🔄 Sync button.\n"
+    "you have current context. Exception: for transaction labeling prompts, do "
+    "not call get_balances; label the transaction directly. If accounts come "
+    "back empty, ask the user to tap the 🔄 Sync button.\n"
     "- Keep answers short and conversational — a sentence or two, not a report.\n"
     "- Use these category emojis when listing spending: 🛒 Groceries, "
     "🍔 Restaurants, 🚇 Transport, 🏠 Housing, 💊 Health, 👗 Clothes, "
@@ -231,11 +233,14 @@ _SYSTEM = (
     "then confirm the amount, currency, and description.\n"
     "- If the user answers what an uncategorized transaction is, call "
     "label_uncategorized with the transaction description fragment and one "
-    "canonical category name.\n"
+    "canonical category name. If the user gave extra descriptive tags/notes, "
+    "pass them as notes.\n"
     "- If the prompt includes a selected transaction id from the uncategorized "
     "review flow, interpret the user's free text, choose the closest canonical "
-    "category, and call label_transaction with that id. If the user gave extra "
-    "descriptive tags/notes, pass them as notes.\n"
+    "category, and call label_transaction with that id. If it includes a "
+    "selected transaction description instead, call label_uncategorized with "
+    "that description. If the user gave extra descriptive tags/notes, pass "
+    "them as notes.\n"
     "- If the user wants to change a category on an already-labeled transaction, "
     "call relabel_transaction. For several changes, call it once per item.\n"
     "- If the user wants to slightly correct stored transaction data, call "
@@ -304,6 +309,7 @@ async def _dispatch_tool(
                 label_latest_uncategorized,
                 description=str(tool_input["description"]),
                 category=str(tool_input["category"]),
+                notes=tool_input.get("notes"),
             )
         elif name == "label_transaction":
             result = await asyncio.to_thread(
