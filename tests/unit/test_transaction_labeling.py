@@ -204,10 +204,14 @@ def test_label_transaction_by_id_updates_selected_transaction(session, monkeypat
     session.commit()
     tx_id = tx.id
 
-    result = labeling.label_transaction_by_id(str(tx_id), cat.SHOPPING)
+    result = labeling.label_transaction_by_id(
+        str(tx_id), cat.SHOPPING, notes="kids shoes #family"
+    )
 
     assert result["category"] == cat.SHOPPING
+    assert result["notes"] == "kids shoes #family"
     updated = session.get(Transaction, tx_id)
     session.refresh(updated)
     assert updated.category == cat.SHOPPING
+    assert updated.notes == "kids shoes #family"
     assert updated.mode == "solo"

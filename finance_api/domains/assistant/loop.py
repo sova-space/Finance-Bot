@@ -28,6 +28,7 @@ from finance_api.domains.insights.queries import (
 from finance_api.domains.transactions.labeling import (
     edit_latest_transaction,
     label_latest_uncategorized,
+    label_transaction_by_id,
     relabel_latest_transaction,
 )
 from finance_api.domains.transactions.manual import record_manual_income
@@ -144,6 +145,23 @@ _TOOL_DEFS: list[dict] = [
         },
     },
     {
+        "name": "label_transaction",
+        "description": (
+            "Set a category for a specific transaction id selected by the "
+            "uncategorized review flow. Also save any user-provided free-text "
+            "description/tags as notes."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "transaction_id": {"type": "string"},
+                "category": {"type": "string"},
+                "notes": {"type": "string"},
+            },
+            "required": ["transaction_id", "category"],
+        },
+    },
+    {
         "name": "relabel_transaction",
         "description": (
             "Change category for an existing already-labeled transaction. Use when "
@@ -214,6 +232,10 @@ _SYSTEM = (
     "- If the user answers what an uncategorized transaction is, call "
     "label_uncategorized with the transaction description fragment and one "
     "canonical category name.\n"
+    "- If the prompt includes a selected transaction id from the uncategorized "
+    "review flow, interpret the user's free text, choose the closest canonical "
+    "category, and call label_transaction with that id. If the user gave extra "
+    "descriptive tags/notes, pass them as notes.\n"
     "- If the user wants to change a category on an already-labeled transaction, "
     "call relabel_transaction. For several changes, call it once per item.\n"
     "- If the user wants to slightly correct stored transaction data, call "
@@ -232,7 +254,11 @@ async def _dispatch_tool(
 ) -> str:
     """Run the named read-only query and return a JSON string result."""
     try:
-        if user_id is not None and name not in {"get_balances", "get_spending"}:
+        if user_id is not None and name not in {
+            "get_balances",
+            "get_spending",
+            "label_transaction",
+        }:
             return "Error: this tool is not user-scoped yet"
         if name == "get_balances":
             result = await asyncio.to_thread(get_account_balances, 0, user_id)
@@ -278,6 +304,13 @@ async def _dispatch_tool(
                 label_latest_uncategorized,
                 description=str(tool_input["description"]),
                 category=str(tool_input["category"]),
+            )
+        elif name == "label_transaction":
+            result = await asyncio.to_thread(
+                label_transaction_by_id,
+                str(tool_input["transaction_id"]),
+                str(tool_input["category"]),
+                notes=tool_input.get("notes"),
             )
         elif name == "relabel_transaction":
             result = await asyncio.to_thread(

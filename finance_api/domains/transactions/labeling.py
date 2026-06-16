@@ -60,7 +60,9 @@ def get_next_uncategorized(user_id: UUID | None = None) -> dict[str, Any] | None
         return _tx_payload(tx)
 
 
-def label_transaction_by_id(transaction_id: str, category: str) -> dict[str, Any]:
+def label_transaction_by_id(
+    transaction_id: str, category: str, notes: str | None = None
+) -> dict[str, Any]:
     """Label a specific transaction selected by the bot review flow."""
     if category not in cat.ALL:
         raise ValueError(f"Unknown category '{category}'. Valid: {sorted(cat.ALL)}")
@@ -69,6 +71,8 @@ def label_transaction_by_id(transaction_id: str, category: str) -> dict[str, Any
         if tx is None:
             raise ValueError("Transaction not found")
         tx.category = category
+        if notes:
+            tx.notes = notes.strip()
         if tx.amount < 0 and tx.mode is None:
             tx.mode = modes.SOLO
         session.add(tx)

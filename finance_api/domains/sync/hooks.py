@@ -75,13 +75,14 @@ def format_new_transaction_message(tx: dict[str, Any]) -> str:
                 f"🆕 {description}: {amount}\n"
                 "Що це за категорія? Напиши в чат, наприклад:\n"
                 f"label {description} as Food & Drink\n"
-                f"Варіанти: {_CATEGORY_EXAMPLES}"
+                "або натисни ❓ Label і напиши своїми словами, "  # noqa: RUF001
+                "щоб я сам вибрав категорію."
             )
         return (
             f"🆕 {description}: {amount}\n"
             "What category is this? Reply in chat, e.g.\n"
             f"label {description} as Food & Drink\n"
-            f"Options: {_CATEGORY_EXAMPLES}"
+            "or tap ❓ Label and type your own description."
         )
 
     hints = _UK_CATEGORY_HINTS if language == "uk" else _CATEGORY_HINTS

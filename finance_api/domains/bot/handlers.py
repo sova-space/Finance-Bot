@@ -672,6 +672,14 @@ async def chat(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     prompt = _strip_bot_mention(message.text, ctx)
     if not prompt:
         return
+    selected_tx_id = None
+    if isinstance(ctx.user_data, dict):
+        selected_tx_id = ctx.user_data.get("uncategorized_tx_id")
+    if selected_tx_id:
+        prompt = (
+            "Selected uncategorized transaction id: "
+            f"{selected_tx_id}\nUser answer: {prompt}"
+        )
     await ctx.bot.send_chat_action(
         chat_id=update.effective_chat.id, action=ChatAction.TYPING
     )
