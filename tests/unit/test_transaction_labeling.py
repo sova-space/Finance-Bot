@@ -7,6 +7,7 @@ from sqlmodel import select
 
 from finance_api.domains.accounts.models import Account
 from finance_api.domains.transactions import categories as cat
+from finance_api.domains.transactions import labeling
 from finance_api.domains.transactions.models import Transaction
 
 
@@ -129,3 +130,84 @@ def test_edit_latest_transaction_can_adjust_amount_and_description(
     assert updated.amount == 1200
     assert updated.description == "Cash income corrected"
     assert updated.notes == "fixed from chat"
+
+
+def test_get_next_uncategorized_returns_newest_expense(session, monkeypatch):
+    monkeypatch.setattr(labeling, "engine", session.bind)
+    account = Account(
+        monobank_id="acc-1",
+        name="Card",
+        currency="UAH",
+        account_type="black",
+    )
+    session.add(account)
+    session.commit()
+    session.refresh(account)
+    old = Transaction(
+        account_id=account.id,
+        monobank_id="old",
+        amount=-100,
+        currency="UAH",
+        date=date(2026, 6, 10),
+        description="OLD SHOP",
+        category=None,
+    )
+    newest = Transaction(
+        account_id=account.id,
+        monobank_id="new",
+        amount=-200,
+        currency="UAH",
+        date=date(2026, 6, 11),
+        description="NEW SHOP",
+        category=None,
+    )
+    income = Transaction(
+        account_id=account.id,
+        monobank_id="income",
+        amount=1000,
+        currency="UAH",
+        date=date(2026, 6, 12),
+        description="INCOME",
+        category=None,
+    )
+    session.add_all([old, newest, income])
+    session.commit()
+
+    result = labeling.get_next_uncategorized()
+
+    assert result is not None
+    assert result["description"] == "NEW SHOP"
+    assert result["amount"] == -200
+
+
+def test_label_transaction_by_id_updates_selected_transaction(session, monkeypatch):
+    monkeypatch.setattr(labeling, "engine", session.bind)
+    account = Account(
+        monobank_id="acc-1",
+        name="Card",
+        currency="UAH",
+        account_type="black",
+    )
+    session.add(account)
+    session.commit()
+    session.refresh(account)
+    tx = Transaction(
+        account_id=account.id,
+        monobank_id="selected",
+        amount=-300,
+        currency="UAH",
+        date=date(2026, 6, 10),
+        description="SELECTED SHOP",
+        category=None,
+    )
+    session.add(tx)
+    session.commit()
+    tx_id = tx.id
+
+    result = labeling.label_transaction_by_id(str(tx_id), cat.SHOPPING)
+
+    assert result["category"] == cat.SHOPPING
+    updated = session.get(Transaction, tx_id)
+    session.refresh(updated)
+    assert updated.category == cat.SHOPPING
+    assert updated.mode == "solo"

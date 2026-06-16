@@ -17,6 +17,9 @@ def test_balance_keyboard_is_easy_to_tap():
     buttons = [button for row in keyboard for button in row]
     assert len(buttons) <= 6
     assert all(len(row) <= 2 for row in keyboard)
+    assert any(
+        button.get("callback_data") == "uncat" for row in keyboard for button in row
+    )
 
 
 def test_month_report_formats_month_name_and_salary_range():

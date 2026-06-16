@@ -18,6 +18,7 @@ from finance_api.domains.bot.handlers import (
     SPENDING_CAT_PREFIX,
     SUBS_CALLBACK,
     SYNC_CALLBACK,
+    UNCATEGORIZED_CALLBACK,
     balance,
     callback_balance,
     callback_income,
@@ -27,12 +28,14 @@ from finance_api.domains.bot.handlers import (
     callback_spending_category,
     callback_subs,
     callback_sync,
+    callback_uncategorized,
     chat,
     cmd_finance_app,
     delete_my_data,
     save_token,
     start,
     sync,
+    uncategorized,
 )
 
 
@@ -47,6 +50,7 @@ def create_bot(token: str) -> Application:
         "finance": balance,
         "balance": balance,
         "sync": sync,
+        "uncategorized": uncategorized,
     }
     for command in BOT_COMMANDS:
         if handler := handler_map.get(command.command):
@@ -55,6 +59,12 @@ def create_bot(token: str) -> Application:
         CallbackQueryHandler(callback_balance, pattern=f"^{BALANCE_CALLBACK}(:\\d+)?$")
     )
     app.add_handler(CallbackQueryHandler(callback_sync, pattern=f"^{SYNC_CALLBACK}$"))
+    app.add_handler(
+        CallbackQueryHandler(
+            callback_uncategorized,
+            pattern=f"^{UNCATEGORIZED_CALLBACK}(:.+)?$",
+        )
+    )
     app.add_handler(
         CallbackQueryHandler(callback_income, pattern=f"^{INCOME_CALLBACK}$")
     )

@@ -198,13 +198,10 @@ def format_balance(
         income_text = format_income_summary(month["income"])
         if income_text:
             income_block = f"\n\n{income_text}"
-    spent_block = _format_spent_totals(accounts)
-    spent_block = f"\n\n{spent_block}" if spent_block else ""
     return (
         f"💳 {bold('Balance now')}\n"
         + cycle_block
-        + spent_block
-        + ("\n\n" + pre("\n".join(card_lines)) if card_lines else "")
+        + ("\n" + pre("\n".join(card_lines)) if card_lines else "")
         + income_block
         + f"\n\n🕐 {_fmt_ago(latest_sync)}"
     )

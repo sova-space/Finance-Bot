@@ -21,6 +21,7 @@ BOT_COMMANDS: list[BotCommand] = [
     BotCommand("token", "Save Monobank token"),
     BotCommand("delete_my_data", "Delete my data"),
     BotCommand("finance", "Open finance"),
+    BotCommand("uncategorized", "Label uncategorized expenses"),
 ]
 
 

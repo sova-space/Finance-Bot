@@ -1,6 +1,7 @@
 """Helpers for manually labeling uncategorized transactions from chat."""
 
 from typing import Any
+from uuid import UUID
 
 from sqlmodel import Session, select
 
@@ -38,6 +39,42 @@ def _tx_payload(tx: Transaction, **extra: Any) -> dict[str, Any]:
         "notes": tx.notes,
         **extra,
     }
+
+
+def get_next_uncategorized(user_id: UUID | None = None) -> dict[str, Any] | None:
+    """Return the newest uncategorized expense for bot review, if any."""
+    with Session(engine) as session:
+        q = (
+            select(Transaction)
+            .where(Transaction.category.is_(None))  # type: ignore[union-attr]
+            .where(Transaction.amount < 0)
+            .where(Transaction.is_pending == False)  # noqa: E712
+        )
+        if user_id is not None:
+            q = q.where(Transaction.user_id == user_id)
+        tx = session.exec(
+            q.order_by(Transaction.date.desc(), Transaction.created_at.desc()).limit(1)  # type: ignore[attr-defined]
+        ).first()
+        if tx is None:
+            return None
+        return _tx_payload(tx)
+
+
+def label_transaction_by_id(transaction_id: str, category: str) -> dict[str, Any]:
+    """Label a specific transaction selected by the bot review flow."""
+    if category not in cat.ALL:
+        raise ValueError(f"Unknown category '{category}'. Valid: {sorted(cat.ALL)}")
+    with Session(engine) as session:
+        tx = session.get(Transaction, UUID(transaction_id))
+        if tx is None:
+            raise ValueError("Transaction not found")
+        tx.category = category
+        if tx.amount < 0 and tx.mode is None:
+            tx.mode = modes.SOLO
+        session.add(tx)
+        session.commit()
+        session.refresh(tx)
+        return _tx_payload(tx)
 
 
 def label_latest_uncategorized(description: str, category: str) -> dict[str, Any]:

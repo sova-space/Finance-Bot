@@ -32,6 +32,11 @@ from finance_api.domains.insights.queries import (
     get_visible_account_count,
 )
 from finance_api.domains.sync.monobank import run_sync, run_sync_for_user
+from finance_api.domains.transactions import categories as cat
+from finance_api.domains.transactions.labeling import (
+    get_next_uncategorized,
+    label_transaction_by_id,
+)
 from finance_api.domains.users.queries import (
     delete_user_data,
     get_or_create_user_by_telegram_id,
@@ -48,6 +53,7 @@ SPENDING_CAT_PREFIX = "spd:"
 SUBS_CALLBACK = "subs"
 SKIPPED_CALLBACK = "skipped"
 BALANCE_CALLBACK = "balance_cb"
+UNCATEGORIZED_CALLBACK = "uncat"
 
 _MSG_NOT_MODIFIED = "message is not modified"
 _background_tasks: set[asyncio.Task] = set()
@@ -83,8 +89,9 @@ def _main_keyboard(offset: int = 0) -> InlineKeyboardMarkup:
             InlineKeyboardButton(
                 "📊 Spending", callback_data=f"{SPENDING_CALLBACK}:{offset}"
             ),
-            InlineKeyboardButton("🔄 Sync", callback_data=SYNC_CALLBACK),
+            InlineKeyboardButton("❓ Label", callback_data=UNCATEGORIZED_CALLBACK),
         ],
+        [InlineKeyboardButton("🔄 Sync", callback_data=SYNC_CALLBACK)],
     ])
 
 
@@ -369,6 +376,65 @@ async def callback_skipped(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> No
         await _edit(query, f"❌ Error: {code(e)}", parse_mode=PARSE_MODE)
 
 
+_REVIEW_CATEGORIES: list[tuple[str, str]] = [
+    ("🍔 Food", cat.FOOD_AND_DRINK),
+    ("🛒 Groceries", cat.GROCERIES),
+    ("🚇 Transport", cat.TRANSPORTATION),
+    ("🛍️ Shopping", cat.SHOPPING),
+    ("📱 Subs", cat.SUBSCRIPTIONS),
+    ("⚡ Utils", cat.UTILITIES),
+    ("💳 Finance", cat.FINANCE),
+    ("💑 Partner", cat.PARTNER),
+]
+
+
+def _amount_label(tx: dict) -> str:
+    amount = abs(float(tx["amount"]))
+    rendered = f"{amount:,.0f}" if amount == int(amount) else f"{amount:,.2f}"
+    return f"{rendered} {tx['currency']}"
+
+
+def _uncategorized_text(tx: dict | None) -> str:
+    if tx is None:
+        return "✅ No uncategorized expenses."
+    return (
+        "❓ <b>What is this transaction?</b>\n"
+        f"<code>{tx['description']}</code>\n"
+        f"{_amount_label(tx)} · {tx['date']}"
+    )
+
+
+def _uncategorized_keyboard(tx: dict | None) -> InlineKeyboardMarkup:
+    if tx is None:
+        return _balance_keyboard()
+    rows = [
+        [
+            InlineKeyboardButton(
+                label,
+                callback_data=f"{UNCATEGORIZED_CALLBACK}:{category}",
+            )
+            for label, category in _REVIEW_CATEGORIES[i : i + 2]
+        ]
+        for i in range(0, len(_REVIEW_CATEGORIES), 2)
+    ]
+    rows.append([InlineKeyboardButton("← Back", callback_data=f"{BALANCE_CALLBACK}:0")])
+    return InlineKeyboardMarkup(rows)
+
+
+async def _show_uncategorized(query_or_message, user_data: dict, user_id=None) -> None:
+    tx = await asyncio.to_thread(get_next_uncategorized, user_id)
+    user_data["uncategorized_tx_id"] = tx["id"] if tx else None
+    kwargs = {
+        "text": _uncategorized_text(tx),
+        "parse_mode": PARSE_MODE,
+        "reply_markup": _uncategorized_keyboard(tx),
+    }
+    if hasattr(query_or_message, "edit_message_text"):
+        await _edit(query_or_message, **kwargs)
+    else:
+        await query_or_message.reply_text(**kwargs)
+
+
 _CAT_SHORT: dict[str, str] = {
     "Food & Drink": "Food",
     "Groceries": "Groceries",
@@ -502,6 +568,47 @@ async def callback_subs(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     except Exception as e:
         log.error("subs_callback_failed", error=str(e))
         await _edit(query, f"❌ Error: {code(e)}", parse_mode=PARSE_MODE)
+
+
+async def uncategorized(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    """Ask the user to categorize the next uncategorized transaction."""
+    try:
+        if update.message is None:
+            return
+        user_id = await _user_id_for_private_chat(update)
+        await _show_uncategorized(update.message, ctx.user_data or {}, user_id=user_id)
+    except Exception as e:
+        log.error("uncategorized_failed", error=str(e))
+        if update.message is not None:
+            await update.message.reply_text(
+                f"❌ Error: {code(str(e))}", parse_mode=PARSE_MODE
+            )
+
+
+async def callback_uncategorized(
+    update: Update, ctx: ContextTypes.DEFAULT_TYPE
+) -> None:
+    """Show or label the current uncategorized transaction."""
+    query = update.callback_query
+    if query is None:
+        return
+    await query.answer()
+    try:
+        state = ctx.user_data or {}
+        data = str(query.data or "")
+        if data == UNCATEGORIZED_CALLBACK:
+            await _show_uncategorized(query, state)
+            return
+        category = data.split(":", 1)[1]
+        tx_id = state.get("uncategorized_tx_id")
+        if not tx_id:
+            await _show_uncategorized(query, state)
+            return
+        await asyncio.to_thread(label_transaction_by_id, tx_id, category)
+        await _show_uncategorized(query, state)
+    except Exception as e:
+        log.error("uncategorized_callback_failed", error=str(e))
+        await _edit(query, f"❌ Error: {code(str(e))}", parse_mode=PARSE_MODE)
 
 
 async def sync(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:

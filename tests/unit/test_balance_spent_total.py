@@ -3,7 +3,7 @@
 from finance_api.domains.bot import formatter
 
 
-def test_balance_shows_clear_spent_total_by_currency():
+def test_balance_does_not_duplicate_spent_totals():
     text = formatter.format_balance(
         accounts=[
             {
@@ -11,14 +11,6 @@ def test_balance_shows_clear_spent_total_by_currency():
                 "currency": "UAH",
                 "balance": 32765,
                 "spent": 111856,
-                "is_fop": False,
-                "synced_at": None,
-            },
-            {
-                "name": "Monobank White UAH",
-                "currency": "UAH",
-                "balance": 401,
-                "spent": 0,
                 "is_fop": False,
                 "synced_at": None,
             },
@@ -39,9 +31,11 @@ def test_balance_shows_clear_spent_total_by_currency():
         },
     )
 
-    assert "Spent" in text
-    assert "🇺🇦 UAH  111,856 ₴" in text
-    assert "🇺🇸 USD  $2,960" in text
+    assert "<b>Spent</b>" not in text
+    assert "🇺🇦 UAH  111,856 ₴" not in text
+    assert "🇺🇸 USD  $2,960" not in text
+    assert "Black  32,765 ₴ of 144,621 ₴ · spent 77%" in text
+    assert "FOP  $1 of $2,961 · spent 100%" in text
 
 
 def test_balance_uses_balance_now_title_and_skips_duplicate_currency_totals():

@@ -23,6 +23,7 @@ from finance_api.domains.bot.handlers import (
     SPENDING_CAT_PREFIX,
     SUBS_CALLBACK,
     SYNC_CALLBACK,
+    UNCATEGORIZED_CALLBACK,
 )
 from finance_api.domains.insights.queries import (
     get_account_balances,
@@ -71,8 +72,9 @@ def balance_keyboard(offset: int = 0) -> dict[str, list[list[dict[str, str]]]]:
                 _button(
                     "📊 Spending", callback_data=_callback(SPENDING_CALLBACK, offset)
                 ),
-                _button("🔄 Sync", callback_data=SYNC_CALLBACK),
+                _button("❓ Label", callback_data=UNCATEGORIZED_CALLBACK),
             ],
+            [_button("🔄 Sync", callback_data=SYNC_CALLBACK)],
         ]
     }
 
