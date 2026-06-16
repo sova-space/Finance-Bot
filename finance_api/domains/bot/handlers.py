@@ -3,7 +3,13 @@
 import asyncio
 
 import structlog
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Message, Update
+from telegram import (
+    ForceReply,
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+    Message,
+    Update,
+)
 from telegram.constants import ChatAction
 from telegram.error import BadRequest
 from telegram.ext import ContextTypes
@@ -35,6 +41,7 @@ from finance_api.domains.sync.monobank import run_sync, run_sync_for_user
 from finance_api.domains.transactions import categories as cat
 from finance_api.domains.transactions.labeling import (
     get_next_uncategorized,
+    label_latest_uncategorized,
     label_transaction_by_id,
 )
 from finance_api.domains.users.queries import (
@@ -164,6 +171,19 @@ def _uncategorized_description_from_reply(message) -> str | None:
         return None
     lines = [line.strip() for line in text.splitlines() if line.strip()]
     return lines[1] if len(lines) > 1 else None
+
+
+def _category_from_label_text(text: str) -> str | None:
+    value = text.lower()
+    if any(word in value for word in ["алког", "alcohol", "beer", "wine", "bar"]):
+        return cat.FOOD_AND_DRINK
+    if any(word in value for word in ["підпис", "subscription", "subs", "google"]):
+        return cat.SUBSCRIPTIONS
+    if any(word in value for word in ["таксі", "taxi", "uber", "bolt"]):
+        return cat.TRANSPORTATION
+    if any(word in value for word in ["продукт", "grocer", "сільпо", "atb", "атб"]):
+        return cat.GROCERIES
+    return None
 
 
 async def _edit(query, text: str, **kwargs) -> None:
@@ -626,11 +646,17 @@ async def callback_uncategorized(
             return
         if category == "__text__":
             state["uncategorized_tx_id"] = tx_id
-            await _edit(
-                query,
-                "✍️ Type what it was. Example: <code>це алкоголь #бар</code>",  # noqa: RUF001
-                parse_mode=PARSE_MODE,
-            )
+            if query.message is not None:
+                await ctx.bot.send_message(
+                    chat_id=query.message.chat.id,
+                    message_thread_id=getattr(query.message, "message_thread_id", None),
+                    text="✍️ What was it?",
+                    parse_mode=PARSE_MODE,
+                    reply_markup=ForceReply(
+                        selective=True,
+                        input_field_placeholder="це алкоголь / google subscription",
+                    ),
+                )
             return
         await asyncio.to_thread(label_transaction_by_id, tx_id, category)
         await _show_uncategorized(query, state)
@@ -704,6 +730,29 @@ async def chat(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     if isinstance(ctx.user_data, dict):
         selected_tx_id = ctx.user_data.get("uncategorized_tx_id")
     reply_description = _uncategorized_description_from_reply(message)
+    quick_category = _category_from_label_text(prompt)
+    if selected_tx_id and quick_category:
+        await asyncio.to_thread(
+            label_transaction_by_id, selected_tx_id, quick_category, notes=prompt
+        )
+        if isinstance(ctx.user_data, dict):
+            ctx.user_data["uncategorized_tx_id"] = None
+        await message.reply_text(
+            f"✅ Labeled as <b>{quick_category}</b>", parse_mode=PARSE_MODE
+        )
+        await _show_uncategorized(message, ctx.user_data or {})
+        return
+    if reply_description and quick_category:
+        await asyncio.to_thread(
+            label_latest_uncategorized,
+            reply_description,
+            quick_category,
+            notes=prompt,
+        )
+        await message.reply_text(
+            f"✅ Labeled as <b>{quick_category}</b>", parse_mode=PARSE_MODE
+        )
+        return
     if selected_tx_id:
         prompt = (
             "Selected uncategorized transaction id: "
