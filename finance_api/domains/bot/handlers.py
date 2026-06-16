@@ -186,6 +186,12 @@ def _category_from_label_text(text: str) -> str | None:
     return None
 
 
+def _description_from_label_text(text: str) -> str | None:
+    value = text.lower()
+    known = ["badboy", "google"]
+    return next((word for word in known if word in value), None)
+
+
 async def _edit(query, text: str, **kwargs) -> None:
     """Edit the message in place; silently ignore if content is unchanged."""
     try:
@@ -731,6 +737,19 @@ async def chat(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         selected_tx_id = ctx.user_data.get("uncategorized_tx_id")
     reply_description = _uncategorized_description_from_reply(message)
     quick_category = _category_from_label_text(prompt)
+    typed_description = _description_from_label_text(prompt)
+    if typed_description and quick_category:
+        await asyncio.to_thread(
+            label_latest_uncategorized,
+            typed_description,
+            quick_category,
+            notes=prompt,
+        )
+        await message.reply_text(
+            f"✅ Labeled <code>{typed_description}</code> as <b>{quick_category}</b>",
+            parse_mode=PARSE_MODE,
+        )
+        return
     if selected_tx_id and quick_category:
         await asyncio.to_thread(
             label_transaction_by_id, selected_tx_id, quick_category, notes=prompt

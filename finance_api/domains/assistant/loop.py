@@ -262,6 +262,7 @@ async def _dispatch_tool(
         if user_id is not None and name not in {
             "get_balances",
             "get_spending",
+            "label_uncategorized",
             "label_transaction",
         }:
             return "Error: this tool is not user-scoped yet"
