@@ -56,3 +56,31 @@ def test_spending_summary_scopes_rows_and_details_to_user(session: Session):
     ]
     assert list(summary["details"]) == ["Groceries"]
     assert summary["details"]["Groceries"][0]["description"] == "Silpo"
+
+
+def test_spending_summary_uses_visible_accounts_like_balance(session: Session):
+    user = get_or_create_user_by_telegram_id(1)
+    personal = _account(user.id, "personal")
+    fop = _account(user.id, "fop")
+    fop.is_fop = True
+    hidden = _account(user.id, "hidden")
+    hidden.hidden = True
+    session.add(personal)
+    session.add(fop)
+    session.add(hidden)
+    session.commit()
+    session.refresh(personal)
+    session.refresh(fop)
+    session.refresh(hidden)
+    session.add(_tx(user.id, personal.id, "personal-tx", -100, "Groceries", "Silpo"))
+    session.add(_tx(user.id, fop.id, "fop-tx", -200, "Finance", "Tax"))
+    session.add(_tx(user.id, hidden.id, "hidden-tx", -300, "Shopping", "Hidden"))
+    session.commit()
+
+    summary = get_spending_summary(user_id=user.id)
+
+    assert sorted(summary["rows"], key=lambda r: r["category"]) == [
+        {"category": "Finance", "currency": "UAH", "amount": 200},
+        {"category": "Groceries", "currency": "UAH", "amount": 100},
+    ]
+    assert sorted(summary["details"]) == ["Finance", "Groceries"]

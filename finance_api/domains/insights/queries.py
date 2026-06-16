@@ -466,17 +466,17 @@ def get_spending_summary(
     """Return UAH spending by category for the selected calendar month."""
     start, end = _calendar_month_for_offset(offset)
     with Session(engine) as session:
-        personal_query = select(Account.id).where(Account.is_fop == False)  # noqa: E712
+        visible_query = select(Account.id).where(Account.hidden == False)  # noqa: E712
         if user_id is not None:
-            personal_query = personal_query.where(Account.user_id == user_id)
-        personal_ids = session.exec(personal_query).all()
+            visible_query = visible_query.where(Account.user_id == user_id)
+        visible_ids = session.exec(visible_query).all()
         summary_rows = session.exec(
             select(
                 Transaction.category,
                 Transaction.currency,
                 func.sum(Transaction.amount),
             )
-            .where(Transaction.account_id.in_(personal_ids))
+            .where(Transaction.account_id.in_(visible_ids))
             .where(Transaction.date >= start)
             .where(Transaction.date <= end)
             .where(Transaction.amount < 0)
@@ -501,7 +501,7 @@ def get_spending_summary(
                 Transaction.date,
                 Transaction.currency,
             )
-            .where(Transaction.account_id.in_(personal_ids))
+            .where(Transaction.account_id.in_(visible_ids))
             .where(Transaction.amount < 0)
             .where(Transaction.date >= start)
             .where(Transaction.date <= end)

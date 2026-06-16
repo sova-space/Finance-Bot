@@ -159,7 +159,7 @@ def view_payload(view: str = "balance", category: str | None = None) -> dict[str
     """Return a Telegram-ready UI payload for one finance view."""
     if view == "balance" or view.startswith("balance_cb:"):
         offset = _offset_from_view(view)
-        accounts = get_account_balances()
+        accounts = get_account_balances(offset)
         month = get_month_cycle_summary(offset)
         return {
             "text": format_balance(accounts, month),

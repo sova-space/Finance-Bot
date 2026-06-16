@@ -176,17 +176,9 @@ def format_balance(
     for a in accounts:
         by_currency[a["currency"]].append(a)
 
-    group_totals: dict[str, float] = {
-        currency: round(sum(a["balance"] for a in group))
-        for currency, group in by_currency.items()
-    }
-
-    total_lines: list[str] = []
     card_lines: list[str] = []
     for currency, group in by_currency.items():
         flag = _CURRENCY_FLAG.get(currency, "💱")
-        total_str = _fmt_amount(group_totals[currency], currency)
-        total_lines.append(f"{flag} {currency}  {bold(total_str)}")
         for account in sorted(
             group, key=lambda item: _short_name(item["name"], currency)
         ):
@@ -209,9 +201,8 @@ def format_balance(
     spent_block = _format_spent_totals(accounts)
     spent_block = f"\n\n{spent_block}" if spent_block else ""
     return (
-        f"💳 {bold('Mono')}\n"
+        f"💳 {bold('Balance now')}\n"
         + cycle_block
-        + "\n".join(total_lines)
         + spent_block
         + ("\n\n" + pre("\n".join(card_lines)) if card_lines else "")
         + income_block

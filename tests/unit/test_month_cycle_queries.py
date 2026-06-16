@@ -229,7 +229,7 @@ def test_month_income_uses_income_rules_and_exchange_rate(session):
     assert "USD FOP internal transfer" not in str(summary)
 
 
-def test_spending_summary_excludes_fop_card_expenses(session):
+def test_spending_summary_includes_visible_fop_card_expenses(session):
     personal = _account(session)
     fop = _account(session, is_fop=True)
     start = date.today().replace(day=1)
@@ -258,6 +258,9 @@ def test_spending_summary_excludes_fop_card_expenses(session):
     summary = queries.get_spending_summary(offset=0)
 
     assert summary["rows"] == [
-        {"category": cat.FINANCE, "currency": "UAH", "amount": 60_000.0}
+        {"category": cat.FINANCE, "currency": "UAH", "amount": 177_928.0}
     ]
-    assert [tx["amount"] for tx in summary["details"][cat.FINANCE]] == [60_000.0]
+    assert [tx["amount"] for tx in summary["details"][cat.FINANCE]] == [
+        117_928.0,
+        60_000.0,
+    ]
