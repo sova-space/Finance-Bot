@@ -55,3 +55,10 @@ export interface ForecastRow {
   currency?: string;
   balance?: number;
 }
+
+export interface FxRate {
+  from: string;
+  to: string;
+  rate: number;
+  date?: number | null;
+}

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 
 import { apiGet } from '../../api/client';
-import type { SpendingRow } from '../../api/types';
+import type { FxRate, SpendingRow } from '../../api/types';
 import { Card } from '../../components/Card';
 import { EmptyState } from '../../components/EmptyState';
 import { ErrorState } from '../../components/ErrorState';
@@ -17,6 +17,7 @@ export function SpendingScreen() {
   const { currency } = usePreferences();
   const [period, setPeriod] = useState<AnalyticsPeriod>('this_month');
   const [rows, setRows] = useState<SpendingRow[] | null>(null);
+  const [rates, setRates] = useState<FxRate[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -25,8 +26,14 @@ export function SpendingScreen() {
     setError(null);
     async function load() {
       try {
-        const data = await apiGet<SpendingRow[]>(`/transactions/spending?period=${period}&exclude_uncategorized=false`);
-        if (!cancelled) setRows(data);
+        const [data, fxRates] = await Promise.all([
+          apiGet<SpendingRow[]>(`/transactions/spending?period=${period}&exclude_uncategorized=false`),
+          apiGet<FxRate[]>('/fx/rates').catch(() => []),
+        ]);
+        if (!cancelled) {
+          setRows(data);
+          setRates(fxRates);
+        }
       } catch (caught) {
         if (!cancelled) setError(caught instanceof Error ? caught.message : 'Unknown error');
       }
@@ -39,8 +46,8 @@ export function SpendingScreen() {
 
   const chartCurrency = useMemo(() => preferredCurrency(rows ?? [], currency), [currency, rows]);
   const sortedRows = useMemo(
-    () => rowsForCurrency([...(rows ?? [])].sort((a, b) => b.amount - a.amount), chartCurrency),
-    [chartCurrency, rows],
+    () => rowsForCurrency(rows ?? [], chartCurrency, rates),
+    [chartCurrency, rates, rows],
   );
   const uncategorized = sortedRows.find((row) => row.category === 'Uncategorized');
   const total = sortedRows.reduce((sum, row) => sum + row.amount, 0);

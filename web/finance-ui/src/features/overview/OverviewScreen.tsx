@@ -1,30 +1,21 @@
 import { useEffect, useMemo, useState } from 'react';
-import {
-  Area,
-  AreaChart,
-  CartesianGrid,
-  Cell,
-  Pie,
-  PieChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from 'recharts';
+import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts';
 
 import { apiGet } from '../../api/client';
-import type { Account, MonthlyTrend, SpendingRow } from '../../api/types';
+import type { Account, FxRate, MonthlyTrend, SpendingRow } from '../../api/types';
 import { Card } from '../../components/Card';
 import { EmptyState } from '../../components/EmptyState';
 import { ErrorState } from '../../components/ErrorState';
 import { LoadingState } from '../../components/LoadingState';
 import { DASHBOARD_LIMITS } from '../../config/thresholds';
-import { CHART_COLORS, preferredCurrency, rowsForCurrency, shortMonth } from '../../lib/chartData';
+import { CHART_COLORS, convertAmount, convertTrendRows, preferredCurrency, rowsForCurrency } from '../../lib/chartData';
 import { formatCompactMoney, formatMoney } from '../../lib/formatMoney';
 import { usePreferences } from '../../lib/preferences';
+import { CashflowDiagram } from './CashflowDiagram';
 
 interface OverviewData {
   accounts: Account[];
+  rates: FxRate[];
   spending: SpendingRow[];
   trend: MonthlyTrend[];
 }
@@ -37,10 +28,6 @@ function sumByCurrency<T>(rows: T[], getCurrency: (row: T) => string, getAmount:
   }, {});
 }
 
-function currencyPairs(values: Record<string, number>) {
-  return Object.entries(values).sort((a, b) => b[1] - a[1]);
-}
-
 export function OverviewScreen() {
   const { currency } = usePreferences();
   const [data, setData] = useState<OverviewData | null>(null);
@@ -50,13 +37,14 @@ export function OverviewScreen() {
     let cancelled = false;
     async function load() {
       try {
-        const [accounts, spending, trend] = await Promise.all([
+        const [accounts, rates, spending, trend] = await Promise.all([
           apiGet<Account[]>('/accounts'),
+          apiGet<FxRate[]>('/fx/rates').catch(() => []),
           apiGet<SpendingRow[]>('/transactions/spending?period=this_month&exclude_uncategorized=true'),
           apiGet<MonthlyTrend[]>(`/transactions/trend?months=${DASHBOARD_LIMITS.trendMonths}`),
         ]);
         if (!cancelled) {
-          setData({ accounts, spending, trend });
+          setData({ accounts, rates, spending, trend });
         }
       } catch (caught) {
         if (!cancelled) {
@@ -70,30 +58,30 @@ export function OverviewScreen() {
     };
   }, []);
 
-  const balanceByCurrency = useMemo(
-    () => sumByCurrency(data?.accounts ?? [], (account) => account.currency, (account) => account.balance),
-    [data?.accounts],
-  );
-  const spendByCurrency = useMemo(
+  const rawSpendByCurrency = useMemo(
     () => sumByCurrency(data?.spending ?? [], (row) => row.currency, (row) => row.amount),
     [data?.spending],
   );
   const chartCurrency = useMemo(() => preferredCurrency(data?.spending ?? [], currency), [currency, data?.spending]);
+  const convertedBalance = useMemo(
+    () =>
+      (data?.accounts ?? []).reduce(
+        (sum, account) => sum + convertAmount(account.balance, account.currency, chartCurrency, data?.rates ?? []),
+        0,
+      ),
+    [chartCurrency, data?.accounts, data?.rates],
+  );
   const topCategories = useMemo(
-    () => rowsForCurrency([...(data?.spending ?? [])].sort((a, b) => b.amount - a.amount), chartCurrency).slice(0, 12),
-    [chartCurrency, data?.spending],
+    () => rowsForCurrency(data?.spending ?? [], chartCurrency, data?.rates ?? []).slice(0, 12),
+    [chartCurrency, data?.rates, data?.spending],
   );
   const trendRows = useMemo(
-    () =>
-      (data?.trend ?? [])
-        .filter((row) => row.currency === chartCurrency)
-        .map((row) => ({
-          ...row,
-          label: shortMonth(row.month),
-        })),
-    [chartCurrency, data?.trend],
+    () => convertTrendRows(data?.trend ?? [], chartCurrency, data?.rates ?? []),
+    [chartCurrency, data?.rates, data?.trend],
   );
+  const latestTrend = trendRows.at(-1);
   const totalSpend = topCategories.reduce((sum, row) => sum + row.amount, 0);
+  const currentMonthSpend = data?.rates.length ? totalSpend : (rawSpendByCurrency[chartCurrency] ?? totalSpend);
   const biggestCategory = topCategories[0];
 
   if (error) return <ErrorState message={error} />;
@@ -104,22 +92,20 @@ export function OverviewScreen() {
       <div className="hero-grid">
         <Card tone="dark" className="hero-card">
           <p className="eyebrow">Net balance</p>
-          {currencyPairs(balanceByCurrency).length === 0 ? (
+          {data.accounts.length === 0 ? (
             <EmptyState>No accounts synced yet.</EmptyState>
           ) : (
-            <div className="hero-metrics">
-              {currencyPairs(balanceByCurrency).map(([currency, amount]) => (
-                <div key={currency}>
-                  <span>{currency}</span>
-                  <strong>{formatMoney(amount, currency)}</strong>
-                </div>
-              ))}
+            <div className="hero-metrics single">
+              <div>
+                <span>{chartCurrency}</span>
+                <strong>{formatMoney(convertedBalance, chartCurrency)}</strong>
+              </div>
             </div>
           )}
         </Card>
 
-        <Card className="kpi-card" title="Spent this month" subtitle={chartCurrency}>
-          <strong>{formatCompactMoney(spendByCurrency[chartCurrency] ?? 0, chartCurrency)}</strong>
+        <Card className="kpi-card" title="Spent this month" subtitle={`${chartCurrency}${data.rates.length ? ' · converted' : ''}`}>
+          <strong>{formatCompactMoney(currentMonthSpend, chartCurrency)}</strong>
           <span>{biggestCategory ? `${biggestCategory.category} leads spend` : 'No spending yet'}</span>
         </Card>
 
@@ -130,33 +116,13 @@ export function OverviewScreen() {
       </div>
 
       <div className="analytics-grid">
-        <Card className="chart-card wide" title="Cashflow trend" subtitle={`Income vs expenses · ${chartCurrency}`}>
-          {trendRows.length === 0 ? (
-            <EmptyState>No trend data.</EmptyState>
-          ) : (
-            <div className="chart-frame tall">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={trendRows} margin={{ left: 0, right: 8, top: 16, bottom: 0 }}>
-                  <defs>
-                    <linearGradient id="incomeFill" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#9fe870" stopOpacity={0.55} />
-                      <stop offset="95%" stopColor="#9fe870" stopOpacity={0.02} />
-                    </linearGradient>
-                    <linearGradient id="expenseFill" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#0e0f0c" stopOpacity={0.22} />
-                      <stop offset="95%" stopColor="#0e0f0c" stopOpacity={0.02} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid stroke="rgba(14,15,12,0.08)" vertical={false} />
-                  <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fill: '#6f726e', fontSize: 12 }} />
-                  <YAxis hide />
-                  <Tooltip formatter={(value) => formatMoney(Number(value), chartCurrency)} contentStyle={{ borderRadius: 18 }} />
-                  <Area type="monotone" dataKey="income" stroke="#4c7f22" strokeWidth={3} fill="url(#incomeFill)" />
-                  <Area type="monotone" dataKey="expenses" stroke="#0e0f0c" strokeWidth={3} fill="url(#expenseFill)" />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
-          )}
+        <Card className="chart-card wide cashflow-card" title="Cashflow" subtitle={`Income → spending · ${chartCurrency}`}>
+          <CashflowDiagram
+            categories={topCategories}
+            currency={chartCurrency}
+            expenses={currentMonthSpend}
+            income={latestTrend?.income ?? currentMonthSpend}
+          />
         </Card>
 
         <Card className="chart-card" title="Spend mix" subtitle={`Top categories · ${chartCurrency}`}>

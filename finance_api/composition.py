@@ -25,6 +25,7 @@ from finance_api.routers import (
     buy_list,
     dashboard,
     debts,
+    fx,
     goals,
     health,
     pockets,
@@ -179,6 +180,7 @@ def create_app() -> FastAPI:
         )
 
     app.include_router(accounts.router, prefix="/accounts", tags=["accounts"])
+    app.include_router(fx.router)
     app.include_router(
         transactions.router,
         prefix="/transactions",

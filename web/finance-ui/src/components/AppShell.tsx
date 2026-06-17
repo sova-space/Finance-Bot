@@ -58,26 +58,6 @@ export function AppShell({ activeTab, children, onTabChange }: AppShellProps) {
           ))}
         </nav>
 
-        <div className="preference-panel" aria-label="Preferences">
-          <div>
-            <span>{t('language')}</span>
-            <div className="segmented-control">
-              <button className={language === 'en' ? 'active' : ''} onClick={() => setLanguage('en')} type="button">EN</button>
-              <button className={language === 'uk' ? 'active' : ''} onClick={() => setLanguage('uk')} type="button">UA</button>
-            </div>
-          </div>
-          <div>
-            <span>{t('currency')}</span>
-            <div className="segmented-control currency-control">
-              {currencies.map((item) => (
-                <button className={currency === item ? 'active' : ''} key={item} onClick={() => setCurrency(item)} type="button">
-                  {item === 'auto' ? t('auto') : item}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-
         <div className="sidebar-note">
           <span className="status-dot" />
           {t('liveData')}
@@ -90,7 +70,22 @@ export function AppShell({ activeTab, children, onTabChange }: AppShellProps) {
             <p className="eyebrow">{t('analytics')}</p>
             <h1>{t(titleKey[activeTab])}</h1>
           </div>
-          <div className="topbar-pill">{t('personalFinance')}</div>
+          <div className="topbar-actions">
+            <div className="mini-switch" aria-label={t('language')}>
+              <button className={language === 'en' ? 'active' : ''} onClick={() => setLanguage('en')} type="button">EN</button>
+              <button className={language === 'uk' ? 'active' : ''} onClick={() => setLanguage('uk')} type="button">UA</button>
+            </div>
+            <select
+              aria-label={t('currency')}
+              className="mini-select"
+              onChange={(event) => setCurrency(event.target.value as CurrencyPreference)}
+              value={currency}
+            >
+              {currencies.map((item) => (
+                <option key={item} value={item}>{item === 'auto' ? t('auto') : item}</option>
+              ))}
+            </select>
+          </div>
         </header>
         {children}
       </main>
