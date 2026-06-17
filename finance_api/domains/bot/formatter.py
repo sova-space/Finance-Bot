@@ -9,6 +9,11 @@ from finance_api.domains.transactions import categories as cat
 
 MONOBANK_TOKEN_URL = "https://api.monobank.ua/"
 
+CATEGORY_LABEL: dict[str, str] = {
+    cat.HEALTHCARE: "Sport/Health",
+}
+
+
 CATEGORY_EMOJI: dict[str, str] = {
     cat.FOOD_AND_DRINK: "🍔",
     cat.GROCERIES: "🛒",
@@ -46,6 +51,11 @@ _PERIOD_LABEL: dict[str, str] = {
 
 def _emoji(category: str) -> str:
     return CATEGORY_EMOJI.get(category, "📦")
+
+
+def category_label(category: str) -> str:
+    """Return the user-facing label for a canonical category."""
+    return CATEGORY_LABEL.get(category, category)
 
 
 def _sym(currency: str) -> str:
@@ -363,7 +373,7 @@ def format_spending_summary(data: dict[str, Any]) -> str:
     else:
         period_label = f"{start.strftime('%-d %b')}-{end.strftime('%-d %b')}"
 
-    name_w = max(len(r["category"]) for r in rows)
+    name_w = max(len(category_label(r["category"])) for r in rows)
     amt_w = max(max(len(f"{r['amount']:,.0f}") for r in rows), len("Total"))
 
     # Summary table — no emoji inside pre so columns align perfectly
@@ -371,9 +381,8 @@ def format_spending_summary(data: dict[str, Any]) -> str:
     for r in rows:
         pct = round(r["amount"] / total * 100) if total else 0
         amt_str = f"{r['amount']:,.0f}"
-        summary_lines.append(
-            f"{r['category']:<{name_w}}  {amt_str:>{amt_w}}  {pct:>3}%"
-        )
+        label = category_label(r["category"])
+        summary_lines.append(f"{label:<{name_w}}  {amt_str:>{amt_w}}  {pct:>3}%")
     summary_lines.append("─" * (name_w + 2 + amt_w + 5))
     summary_lines.append(f"{'Total':<{name_w}}  {total:>{amt_w},.0f}")
 
@@ -454,7 +463,7 @@ def format_spending_category(data: dict[str, Any], category: str) -> str:
 
     start = date.fromisoformat(data["period_start"])
     period_label = start.strftime("%b %-d")
-    cat_header = f"{category}  {cat_row['amount']:,.0f} ₴  ({pct}%)"
+    cat_header = f"{category_label(category)}  {cat_row['amount']:,.0f} ₴  ({pct}%)"
     title = f"{em} {bold(cat_header)}"
     subtitle = italic(f"since {period_label}")
     return f"{title}\n{subtitle}\n\n" + "\n\n".join(parts)
@@ -519,9 +528,8 @@ def format_stats(spending: dict[str, float], period: str = "this_month") -> str:
     ):
         pct = round(amount / total * 100) if total else 0
         em = _emoji(category_name)
-        lines.append(
-            f"{em} {bold(category_name)}  {amount:,.0f} ₴  {italic(f'{pct}%')}"
-        )
+        label = category_label(category_name)
+        lines.append(f"{em} {bold(label)}  {amount:,.0f} ₴  {italic(f'{pct}%')}")
     lines += ["", bold(f"Total: {total:,.0f} ₴")]
     return "\n".join(lines)
 
@@ -541,16 +549,17 @@ def format_budget(budgets: list[dict[str, Any]]) -> str:
         spent = b["spent"]
         limit = b["monthly_limit"]
         sym = _sym(b["currency"])
+        label = category_label(b["category"])
         if b["exceeded"]:
             over = spent - limit
             lines.append(
-                f"{em} {bold(b['category'])}  {spent:,.0f} / {limit:,.0f} {sym}  "
+                f"{em} {bold(label)}  {spent:,.0f} / {limit:,.0f} {sym}  "
                 f"⚠️ {italic(f'over by {over:,.0f}')}"
             )
         else:
             left = b["remaining"]
             lines.append(
-                f"{em} {bold(b['category'])}  {spent:,.0f} / {limit:,.0f} {sym}  "
+                f"{em} {bold(label)}  {spent:,.0f} / {limit:,.0f} {sym}  "
                 f"✅ {italic(f'{left:,.0f} left')}"
             )
     return "\n".join(lines)

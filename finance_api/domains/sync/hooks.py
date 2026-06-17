@@ -15,7 +15,7 @@ _CATEGORY_HINTS = {
     cat.FOOD_AND_DRINK: "you ate well 🍽️",
     cat.GROCERIES: "groceries run 🛒",
     cat.TRANSPORTATION: "moving around 🚇",
-    cat.HEALTHCARE: "health spending 💊",
+    cat.HEALTHCARE: "sport/health 💊",
     cat.SHOPPING: "shopping 🛍️",
     cat.ENTERTAINMENT: "fun money 🎮",
     cat.TRAVEL: "travel ✈️",

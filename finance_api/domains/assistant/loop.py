@@ -225,7 +225,7 @@ _SYSTEM = (
     "back empty, ask the user to tap the 🔄 Sync button.\n"
     "- Keep answers short and conversational — a sentence or two, not a report.\n"
     "- Use these category emojis when listing spending: 🛒 Groceries, "
-    "🍔 Restaurants, 🚇 Transport, 🏠 Housing, 💊 Health, 👗 Clothes, "
+    "🍔 Restaurants, 🚇 Transport, 🏠 Housing, 💊 Sport/Health, 👗 Clothes, "
     "🛍️ Shopping, 🎮 Entertainment, ✈️ Travel, 💳 Financial, 💸 Transfers, "
     "💰 Income, 📦 Other.\n"
     "- Mind currencies — never sum or compare amounts across different currencies.\n"

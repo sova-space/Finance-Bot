@@ -83,7 +83,7 @@ _CAT_SHORT: dict[str, str] = {
     "Food & Drink": "Food",
     "Groceries": "Groceries",
     "Transportation": "Transport",
-    "Healthcare": "Health",
+    "Healthcare": "Sport/Health",
     "Shopping": "Shopping",
     "Entertainment": "Fun",
     "Travel": "Travel",

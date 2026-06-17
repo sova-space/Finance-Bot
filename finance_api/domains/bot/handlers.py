@@ -481,7 +481,7 @@ _CAT_SHORT: dict[str, str] = {
     "Food & Drink": "Food",
     "Groceries": "Groceries",
     "Transportation": "Transport",
-    "Healthcare": "Health",
+    "Healthcare": "Sport/Health",
     "Shopping": "Shopping",
     "Entertainment": "Fun",
     "Travel": "Travel",
@@ -749,6 +749,7 @@ async def chat(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
             f"✅ Labeled <code>{typed_description}</code> as <b>{quick_category}</b>",
             parse_mode=PARSE_MODE,
         )
+        await _show_uncategorized(message, ctx.user_data or {})
         return
     if selected_tx_id and quick_category:
         await asyncio.to_thread(
@@ -771,6 +772,7 @@ async def chat(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         await message.reply_text(
             f"✅ Labeled as <b>{quick_category}</b>", parse_mode=PARSE_MODE
         )
+        await _show_uncategorized(message, ctx.user_data or {})
         return
     if selected_tx_id:
         prompt = (
