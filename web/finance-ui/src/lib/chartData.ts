@@ -1,4 +1,4 @@
-import type { FxRate, MonthlyTrend, SpendingRow } from '../api/types';
+import type { FxRate, SpendingRow } from '../api/types';
 import type { CurrencyPreference } from './preferences';
 
 export const CHART_COLORS = ['#163300', '#4c7f22', '#8bc34a', '#b5ef7d', '#ffd166', '#f4a261', '#2a9d8f'];
@@ -50,20 +50,6 @@ export function rowsForCurrency(rows: SpendingRow[], currency = dominantCurrency
   return Object.entries(totals)
     .map(([category, amount]) => ({ category, amount, currency }))
     .sort((a, b) => b.amount - a.amount);
-}
-
-export function convertTrendRows(rows: MonthlyTrend[], currency: string, rates: FxRate[]) {
-  if (rates.length === 0) return rows.filter((row) => row.currency === currency);
-
-  const totals = rows.reduce<Record<string, MonthlyTrend>>((acc, row) => {
-    const existing = acc[row.month] ?? { month: row.month, currency, income: 0, expenses: 0 };
-    existing.income += convertAmount(row.income, row.currency, currency, rates);
-    existing.expenses += convertAmount(row.expenses, row.currency, currency, rates);
-    acc[row.month] = existing;
-    return acc;
-  }, {});
-
-  return Object.values(totals).sort((a, b) => a.month.localeCompare(b.month));
 }
 
 export function shortMonth(value: string) {

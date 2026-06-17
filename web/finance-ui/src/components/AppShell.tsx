@@ -1,5 +1,6 @@
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 
+import { apiPost } from '../api/client';
 import { NAV_ITEMS, type NavItemId } from '../config/navigation';
 import { usePreferences, type CurrencyPreference } from '../lib/preferences';
 import { lightFeedback } from '../lib/runtime';
@@ -28,6 +29,21 @@ const currencies: CurrencyPreference[] = ['auto', 'UAH', 'USD', 'EUR'];
 
 export function AppShell({ activeTab, children, onTabChange }: AppShellProps) {
   const { currency, language, setCurrency, setLanguage, t } = usePreferences();
+  const [syncState, setSyncState] = useState<'idle' | 'syncing' | 'done' | 'error'>('idle');
+
+  async function triggerSync() {
+    setSyncState('syncing');
+    try {
+      await apiPost('/sync');
+      setSyncState('done');
+      window.setTimeout(() => setSyncState('idle'), 2400);
+    } catch {
+      setSyncState('error');
+      window.setTimeout(() => setSyncState('idle'), 3200);
+    }
+  }
+
+  const syncLabel = syncState === 'syncing' ? 'Syncing' : syncState === 'done' ? 'Synced' : syncState === 'error' ? 'Failed' : 'Sync';
 
   return (
     <div className="app-shell">
@@ -85,6 +101,14 @@ export function AppShell({ activeTab, children, onTabChange }: AppShellProps) {
                 <option key={item} value={item}>{item === 'auto' ? t('auto') : item}</option>
               ))}
             </select>
+            <button
+              className={`mini-sync ${syncState}`}
+              disabled={syncState === 'syncing'}
+              onClick={triggerSync}
+              type="button"
+            >
+              {syncLabel}
+            </button>
           </div>
         </header>
         {children}

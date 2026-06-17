@@ -1,14 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts';
 
 import { apiGet } from '../../api/client';
-import type { Account, FxRate, MonthlyTrend, SpendingRow } from '../../api/types';
+import type { Account, FxRate, SpendingRow, TransactionItem } from '../../api/types';
 import { Card } from '../../components/Card';
 import { EmptyState } from '../../components/EmptyState';
 import { ErrorState } from '../../components/ErrorState';
 import { LoadingState } from '../../components/LoadingState';
-import { DASHBOARD_LIMITS } from '../../config/thresholds';
-import { CHART_COLORS, convertAmount, convertTrendRows, preferredCurrency, rowsForCurrency } from '../../lib/chartData';
+import { PeriodSelector } from '../../components/PeriodSelector';
+import type { AnalyticsPeriod } from '../../config/periods';
+import { CHART_COLORS, convertAmount, preferredCurrency, rowsForCurrency } from '../../lib/chartData';
 import { formatCompactMoney, formatMoney } from '../../lib/formatMoney';
 import { usePreferences } from '../../lib/preferences';
 import { CashflowDiagram } from './CashflowDiagram';
@@ -17,7 +17,7 @@ interface OverviewData {
   accounts: Account[];
   rates: FxRate[];
   spending: SpendingRow[];
-  trend: MonthlyTrend[];
+  transactions: TransactionItem[];
 }
 
 function sumByCurrency<T>(rows: T[], getCurrency: (row: T) => string, getAmount: (row: T) => number) {
@@ -30,6 +30,7 @@ function sumByCurrency<T>(rows: T[], getCurrency: (row: T) => string, getAmount:
 
 export function OverviewScreen() {
   const { currency } = usePreferences();
+  const [period, setPeriod] = useState<AnalyticsPeriod>('this_month');
   const [data, setData] = useState<OverviewData | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -37,14 +38,14 @@ export function OverviewScreen() {
     let cancelled = false;
     async function load() {
       try {
-        const [accounts, rates, spending, trend] = await Promise.all([
+        const [accounts, rates, spending, transactions] = await Promise.all([
           apiGet<Account[]>('/accounts'),
           apiGet<FxRate[]>('/fx/rates').catch(() => []),
-          apiGet<SpendingRow[]>('/transactions/spending?period=this_month&exclude_uncategorized=true'),
-          apiGet<MonthlyTrend[]>(`/transactions/trend?months=${DASHBOARD_LIMITS.trendMonths}`),
+          apiGet<SpendingRow[]>(`/transactions/spending?period=${period}&exclude_uncategorized=true`),
+          apiGet<TransactionItem[]>(`/transactions?period=${period}&limit=200`),
         ]);
         if (!cancelled) {
-          setData({ accounts, rates, spending, trend });
+          setData({ accounts, rates, spending, transactions });
         }
       } catch (caught) {
         if (!cancelled) {
@@ -56,7 +57,7 @@ export function OverviewScreen() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [period]);
 
   const rawSpendByCurrency = useMemo(
     () => sumByCurrency(data?.spending ?? [], (row) => row.currency, (row) => row.amount),
@@ -75,11 +76,14 @@ export function OverviewScreen() {
     () => rowsForCurrency(data?.spending ?? [], chartCurrency, data?.rates ?? []).slice(0, 12),
     [chartCurrency, data?.rates, data?.spending],
   );
-  const trendRows = useMemo(
-    () => convertTrendRows(data?.trend ?? [], chartCurrency, data?.rates ?? []),
-    [chartCurrency, data?.rates, data?.trend],
+  const periodIncome = useMemo(
+    () =>
+      (data?.transactions ?? [])
+        .filter((row) => row.amount > 0)
+        .reduce((sum, row) => sum + convertAmount(row.amount, row.currency, chartCurrency, data?.rates ?? []), 0),
+    [chartCurrency, data?.rates, data?.transactions],
   );
-  const latestTrend = trendRows.at(-1);
+  const recentTransactions = useMemo(() => (data?.transactions ?? []).slice(0, 6), [data?.transactions]);
   const totalSpend = topCategories.reduce((sum, row) => sum + row.amount, 0);
   const currentMonthSpend = data?.rates.length ? totalSpend : (rawSpendByCurrency[chartCurrency] ?? totalSpend);
   const biggestCategory = topCategories[0];
@@ -104,7 +108,7 @@ export function OverviewScreen() {
           )}
         </Card>
 
-        <Card className="kpi-card" title="Spent this month" subtitle={`${chartCurrency}${data.rates.length ? ' · converted' : ''}`}>
+        <Card className="kpi-card" title="Spent" subtitle={`${period.replace('_', ' ')} · ${chartCurrency}${data.rates.length ? ' · converted' : ''}`}>
           <strong>{formatCompactMoney(currentMonthSpend, chartCurrency)}</strong>
           <span>{biggestCategory ? `${biggestCategory.category} leads spend` : 'No spending yet'}</span>
         </Card>
@@ -117,44 +121,34 @@ export function OverviewScreen() {
 
       <div className="analytics-grid">
         <Card className="chart-card wide cashflow-card" title="Cashflow" subtitle={`Income → spending · ${chartCurrency}`}>
+          <div className="card-inline-toolbar">
+            <PeriodSelector value={period} onChange={setPeriod} />
+          </div>
           <CashflowDiagram
             categories={topCategories}
             currency={chartCurrency}
             expenses={currentMonthSpend}
-            income={latestTrend?.income ?? currentMonthSpend}
+            income={periodIncome || currentMonthSpend}
           />
         </Card>
 
-        <Card className="chart-card" title="Spend mix" subtitle={`Top categories · ${chartCurrency}`}>
-          {topCategories.length === 0 ? (
-            <EmptyState>No categories yet.</EmptyState>
+        <Card className="chart-card recent-card" title="Recent activity" subtitle={period.replace('_', ' ')}>
+          {recentTransactions.length === 0 ? (
+            <EmptyState>No transactions for this period.</EmptyState>
           ) : (
-            <div className="donut-layout">
-              <div className="chart-frame donut">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie data={topCategories} dataKey="amount" nameKey="category" innerRadius="62%" outerRadius="88%" paddingAngle={2}>
-                      {topCategories.map((row, index) => (
-                        <Cell key={row.category} fill={CHART_COLORS[index % CHART_COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip formatter={(value) => formatMoney(Number(value), chartCurrency)} contentStyle={{ borderRadius: 18 }} />
-                  </PieChart>
-                </ResponsiveContainer>
-                <div className="donut-center">
-                  <span>Total</span>
-                  <strong>{formatMoney(totalSpend, chartCurrency)}</strong>
-                </div>
-              </div>
-              <div className="legend-list">
-                {topCategories.slice(0, 5).map((row, index) => (
-                  <div className="legend-row" key={row.category}>
-                    <i style={{ background: CHART_COLORS[index % CHART_COLORS.length] }} />
-                    <span>{row.category}</span>
-                    <strong>{formatMoney(row.amount, row.currency)}</strong>
+            <div className="recent-list">
+              {recentTransactions.map((tx, index) => {
+                const converted = convertAmount(tx.amount, tx.currency, chartCurrency, data.rates);
+                return (
+                  <div className="recent-row" key={`${tx.date}-${tx.description}-${index}`}>
+                    <div>
+                      <strong>{tx.description}</strong>
+                      <span>{tx.category ?? tx.date}</span>
+                    </div>
+                    <em className={converted >= 0 ? 'positive' : ''}>{formatMoney(converted, chartCurrency)}</em>
                   </div>
-                ))}
-              </div>
+                );
+              })}
             </div>
           )}
         </Card>

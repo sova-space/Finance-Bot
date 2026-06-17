@@ -56,6 +56,16 @@ export interface ForecastRow {
   balance?: number;
 }
 
+export interface TransactionItem {
+  date: string;
+  description: string;
+  amount: number;
+  currency: string;
+  category?: string | null;
+  mode?: string | null;
+  is_pending?: boolean;
+}
+
 export interface FxRate {
   from: string;
   to: string;
