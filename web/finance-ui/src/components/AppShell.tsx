@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 
 import { NAV_ITEMS, type NavItemId } from '../config/navigation';
+import { usePreferences, type CurrencyPreference } from '../lib/preferences';
 import { lightFeedback } from '../lib/runtime';
 
 interface AppShellProps {
@@ -9,8 +10,24 @@ interface AppShellProps {
   onTabChange: (tab: NavItemId) => void;
 }
 
+const navLabelKey: Record<NavItemId, 'navOverview' | 'navSpending' | 'navBudget' | 'navPlan'> = {
+  overview: 'navOverview',
+  spending: 'navSpending',
+  budget: 'navBudget',
+  plan: 'navPlan',
+};
+
+const titleKey: Record<NavItemId, 'titleOverview' | 'titleSpending' | 'titleBudget' | 'titlePlan'> = {
+  overview: 'titleOverview',
+  spending: 'titleSpending',
+  budget: 'titleBudget',
+  plan: 'titlePlan',
+};
+
+const currencies: CurrencyPreference[] = ['auto', 'UAH', 'USD', 'EUR'];
+
 export function AppShell({ activeTab, children, onTabChange }: AppShellProps) {
-  const activeItem = NAV_ITEMS.find((item) => item.id === activeTab) ?? NAV_ITEMS[0];
+  const { currency, language, setCurrency, setLanguage, t } = usePreferences();
 
   return (
     <div className="app-shell">
@@ -18,8 +35,8 @@ export function AppShell({ activeTab, children, onTabChange }: AppShellProps) {
         <div className="brand-block">
           <div className="brand-mark">₴</div>
           <div>
-            <p className="eyebrow">Finance Bot</p>
-            <strong>Money OS</strong>
+            <p className="eyebrow">{t('financeBot')}</p>
+            <strong>{t('moneyOs')}</strong>
           </div>
         </div>
 
@@ -36,24 +53,44 @@ export function AppShell({ activeTab, children, onTabChange }: AppShellProps) {
               type="button"
             >
               <span className="nav-glyph" aria-hidden="true">{item.glyph}</span>
-              <span>{item.label}</span>
+              <span>{t(navLabelKey[item.id])}</span>
             </button>
           ))}
         </nav>
 
+        <div className="preference-panel" aria-label="Preferences">
+          <div>
+            <span>{t('language')}</span>
+            <div className="segmented-control">
+              <button className={language === 'en' ? 'active' : ''} onClick={() => setLanguage('en')} type="button">EN</button>
+              <button className={language === 'uk' ? 'active' : ''} onClick={() => setLanguage('uk')} type="button">UA</button>
+            </div>
+          </div>
+          <div>
+            <span>{t('currency')}</span>
+            <div className="segmented-control currency-control">
+              {currencies.map((item) => (
+                <button className={currency === item ? 'active' : ''} key={item} onClick={() => setCurrency(item)} type="button">
+                  {item === 'auto' ? t('auto') : item}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
         <div className="sidebar-note">
           <span className="status-dot" />
-          Live Monobank data
+          {t('liveData')}
         </div>
       </aside>
 
       <main className="app-content">
         <header className="topbar">
           <div>
-            <p className="eyebrow">Analytics</p>
-            <h1>{activeItem.title}</h1>
+            <p className="eyebrow">{t('analytics')}</p>
+            <h1>{t(titleKey[activeTab])}</h1>
           </div>
-          <div className="topbar-pill">Personal finance</div>
+          <div className="topbar-pill">{t('personalFinance')}</div>
         </header>
         {children}
       </main>

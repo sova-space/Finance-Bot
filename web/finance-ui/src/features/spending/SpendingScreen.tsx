@@ -9,10 +9,12 @@ import { ErrorState } from '../../components/ErrorState';
 import { LoadingState } from '../../components/LoadingState';
 import { PeriodSelector } from '../../components/PeriodSelector';
 import type { AnalyticsPeriod } from '../../config/periods';
-import { CHART_COLORS, dominantCurrency, rowsForCurrency } from '../../lib/chartData';
+import { CHART_COLORS, preferredCurrency, rowsForCurrency } from '../../lib/chartData';
 import { formatMoney } from '../../lib/formatMoney';
+import { usePreferences } from '../../lib/preferences';
 
 export function SpendingScreen() {
+  const { currency } = usePreferences();
   const [period, setPeriod] = useState<AnalyticsPeriod>('this_month');
   const [rows, setRows] = useState<SpendingRow[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -35,7 +37,7 @@ export function SpendingScreen() {
     };
   }, [period]);
 
-  const chartCurrency = useMemo(() => dominantCurrency(rows ?? []), [rows]);
+  const chartCurrency = useMemo(() => preferredCurrency(rows ?? [], currency), [currency, rows]);
   const sortedRows = useMemo(
     () => rowsForCurrency([...(rows ?? [])].sort((a, b) => b.amount - a.amount), chartCurrency),
     [chartCurrency, rows],

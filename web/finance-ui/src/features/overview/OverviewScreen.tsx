@@ -19,8 +19,9 @@ import { EmptyState } from '../../components/EmptyState';
 import { ErrorState } from '../../components/ErrorState';
 import { LoadingState } from '../../components/LoadingState';
 import { DASHBOARD_LIMITS } from '../../config/thresholds';
-import { CHART_COLORS, dominantCurrency, rowsForCurrency, shortMonth } from '../../lib/chartData';
+import { CHART_COLORS, preferredCurrency, rowsForCurrency, shortMonth } from '../../lib/chartData';
 import { formatCompactMoney, formatMoney } from '../../lib/formatMoney';
+import { usePreferences } from '../../lib/preferences';
 
 interface OverviewData {
   accounts: Account[];
@@ -41,6 +42,7 @@ function currencyPairs(values: Record<string, number>) {
 }
 
 export function OverviewScreen() {
+  const { currency } = usePreferences();
   const [data, setData] = useState<OverviewData | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -76,7 +78,7 @@ export function OverviewScreen() {
     () => sumByCurrency(data?.spending ?? [], (row) => row.currency, (row) => row.amount),
     [data?.spending],
   );
-  const chartCurrency = useMemo(() => dominantCurrency(data?.spending ?? []), [data?.spending]);
+  const chartCurrency = useMemo(() => preferredCurrency(data?.spending ?? [], currency), [currency, data?.spending]);
   const topCategories = useMemo(
     () => rowsForCurrency([...(data?.spending ?? [])].sort((a, b) => b.amount - a.amount), chartCurrency).slice(0, 12),
     [chartCurrency, data?.spending],

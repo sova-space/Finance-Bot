@@ -1,4 +1,5 @@
 import type { SpendingRow } from '../api/types';
+import type { CurrencyPreference } from './preferences';
 
 export const CHART_COLORS = ['#163300', '#4c7f22', '#8bc34a', '#b5ef7d', '#ffd166', '#f4a261', '#2a9d8f'];
 
@@ -9,6 +10,11 @@ export function dominantCurrency(rows: SpendingRow[]) {
   }, {});
 
   return Object.entries(totals).sort((a, b) => b[1] - a[1])[0]?.[0] ?? rows[0]?.currency ?? 'UAH';
+}
+
+export function preferredCurrency(rows: SpendingRow[], preference: CurrencyPreference) {
+  if (preference !== 'auto' && rows.some((row) => row.currency === preference)) return preference;
+  return dominantCurrency(rows);
 }
 
 export function rowsForCurrency(rows: SpendingRow[], currency = dominantCurrency(rows)) {

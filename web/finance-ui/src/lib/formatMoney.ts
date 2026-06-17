@@ -1,8 +1,16 @@
 import { FORMAT_CONFIG } from '../config/format';
 
+function currentLocale() {
+  try {
+    return window.localStorage.getItem('finance_web_language') === 'en' ? 'en-US' : FORMAT_CONFIG.locale;
+  } catch {
+    return FORMAT_CONFIG.locale;
+  }
+}
+
 export function formatMoney(amount: number, currency: string | undefined = FORMAT_CONFIG.defaultCurrency) {
   try {
-    return new Intl.NumberFormat(FORMAT_CONFIG.locale, {
+    return new Intl.NumberFormat(currentLocale(), {
       style: 'currency',
       currency,
       maximumFractionDigits: FORMAT_CONFIG.maximumFractionDigits,
@@ -14,7 +22,7 @@ export function formatMoney(amount: number, currency: string | undefined = FORMA
 
 export function formatCompactMoney(amount: number, currency: string | undefined = FORMAT_CONFIG.defaultCurrency) {
   try {
-    return new Intl.NumberFormat(FORMAT_CONFIG.locale, {
+    return new Intl.NumberFormat(currentLocale(), {
       style: 'currency',
       currency,
       notation: 'compact',
