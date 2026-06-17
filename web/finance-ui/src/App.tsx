@@ -4,7 +4,6 @@ import { AppShell } from './components/AppShell';
 import type { NavItemId } from './config/navigation';
 import { AccountsScreen } from './features/accounts/AccountsScreen';
 import { BudgetScreen } from './features/budget/BudgetScreen';
-import { CashFlowScreen } from './features/cashflow/CashFlowScreen';
 import { OverviewScreen } from './features/overview/OverviewScreen';
 import { PlanScreen } from './features/plan/PlanScreen';
 import { SpendingScreen } from './features/spending/SpendingScreen';
@@ -21,7 +20,6 @@ export function App() {
   return (
     <AppShell activeTab={activeTab} onTabChange={setActiveTab}>
       {activeTab === 'overview' ? <OverviewScreen /> : null}
-      {activeTab === 'cashflow' ? <CashFlowScreen /> : null}
       {activeTab === 'spending' ? <SpendingScreen /> : null}
       {activeTab === 'transactions' ? <TransactionsScreen /> : null}
       {activeTab === 'accounts' ? <AccountsScreen /> : null}

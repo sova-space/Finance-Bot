@@ -123,14 +123,11 @@ h2 {
 .recharts-tooltip-wrapper { outline: none; }
 .card-inline-toolbar { display: flex; justify-content: flex-end; margin: -2px 0 8px; }
 .cashflow-card { min-height: 360px; }
-.cashflow-diagram { width: 100%; min-height: 300px; overflow: hidden; }
-.cashflow-diagram svg { display: block; width: 100%; height: 300px; }
-.cashflow-link { fill: none; stroke-linecap: round; transition: opacity 0.18s ease; }
-.recharts-sankey .recharts-surface { overflow: visible; }
-.recharts-cashflow-link { fill: none; stroke-linecap: round; mix-blend-mode: multiply; }
-.sankey-node-title { fill: var(--text); font-size: 12px; font-weight: 850; pointer-events: none; }
-.sankey-node-value { fill: var(--muted); font-size: 11px; font-weight: 820; font-variant-numeric: tabular-nums; pointer-events: none; }
-.recharts-cashflow-node.center .sankey-node-title { fill: var(--accent-dark); }
+.cashflow-diagram { width: 100%; min-height: 280px; overflow: hidden; }
+.cashflow-diagram svg { display: block; width: 100%; height: 280px; }
+.d3-cashflow-links path { fill: none; stroke-linecap: round; mix-blend-mode: multiply; }
+.d3-node-title { fill: var(--text); font-size: 12px; font-weight: 850; pointer-events: none; }
+.d3-node-value { fill: var(--muted); font-size: 11px; font-weight: 820; font-variant-numeric: tabular-nums; pointer-events: none; }
 .cashflow-node rect { fill: rgba(255,255,255,0.82); stroke: rgba(14,15,12,0.08); }
 .cashflow-node.center rect { fill: #10120f; stroke: #10120f; }
 .cashflow-node.source rect { fill: rgba(159,232,112,0.18); stroke: rgba(76,127,34,0.18); }

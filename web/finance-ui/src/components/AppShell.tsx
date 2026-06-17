@@ -13,7 +13,6 @@ interface AppShellProps {
 
 const NAV_LABEL_KEYS: Record<NavItemId, LabelKey> = {
   overview: 'navOverview',
-  cashflow: 'navCashflow',
   spending: 'navSpending',
   transactions: 'navTransactions',
   accounts: 'navAccounts',
@@ -23,7 +22,6 @@ const NAV_LABEL_KEYS: Record<NavItemId, LabelKey> = {
 
 const TITLE_KEYS: Record<NavItemId, LabelKey> = {
   overview: 'titleOverview',
-  cashflow: 'titleCashflow',
   spending: 'titleSpending',
   transactions: 'titleTransactions',
   accounts: 'titleAccounts',
