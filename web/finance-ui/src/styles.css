@@ -203,18 +203,21 @@ h2 {
 .hero-metrics div { display: grid; gap: 4px; }
 .hero-metrics span { color: rgba(255,255,255,0.58); font-weight: 750; }
 .hero-metrics strong {
-  font-size: clamp(32px, 4vw, 58px);
-  line-height: 0.92;
-  letter-spacing: -0.055em;
-  font-weight: 900;
+  font-size: clamp(30px, 3.4vw, 48px);
+  line-height: 0.96;
+  letter-spacing: -0.045em;
+  font-weight: 850;
+  font-variant-numeric: tabular-nums;
 }
 .kpi-card { min-height: 170px; display: flex; flex-direction: column; justify-content: space-between; }
 .kpi-card strong {
   display: block;
-  font-size: clamp(28px, 3vw, 42px);
-  line-height: 0.95;
-  letter-spacing: -0.05em;
-  font-weight: 900;
+  font-size: clamp(22px, 2.1vw, 30px);
+  line-height: 1.02;
+  letter-spacing: -0.035em;
+  font-weight: 820;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
 }
 .kpi-card span { color: var(--muted); font-weight: 700; }
 .chart-card { min-height: 360px; }
@@ -235,7 +238,61 @@ h2 {
   pointer-events: none;
 }
 .donut-center span { color: var(--muted); font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.09em; }
-.donut-center strong { font-size: 20px; letter-spacing: -0.04em; }
+.donut-center strong { font-size: 18px; letter-spacing: -0.035em; font-weight: 800; }
+.pocket-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.pocket-card {
+  min-height: 112px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  border-radius: 24px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.92), rgba(246,245,239,0.88));
+  border: 1px solid rgba(14,15,12,0.08);
+}
+.pocket-topline {
+  display: grid;
+  grid-template-columns: 12px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 9px;
+}
+.pocket-topline strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14px;
+  font-weight: 820;
+  letter-spacing: -0.02em;
+}
+.pocket-topline em {
+  color: var(--muted);
+  font-style: normal;
+  font-size: 12px;
+  font-weight: 850;
+}
+.pocket-dot { width: 10px; height: 10px; border-radius: 50%; }
+.pocket-amount {
+  margin-top: 10px;
+  font-size: clamp(18px, 2vw, 24px);
+  line-height: 1.05;
+  letter-spacing: -0.035em;
+  font-weight: 820;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.pocket-track {
+  height: 8px;
+  margin-top: 12px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(14,15,12,0.08);
+}
+.pocket-fill { height: 100%; border-radius: inherit; }
 .legend-list { display: grid; gap: 10px; }
 .legend-row, .metric-row, .bar-row-label, .table-row {
   display: flex;
@@ -332,6 +389,7 @@ h2 {
   .hero-grid, .analytics-grid { grid-template-columns: 1fr; }
   .wide { grid-column: auto; }
   .card { border-radius: 24px; padding: 16px; }
+  .pocket-grid { grid-template-columns: 1fr; }
   .section-head { align-items: stretch; flex-direction: column; }
   .period-selector { border-radius: 20px; }
   .chart-frame.spending-bars { height: 360px; }

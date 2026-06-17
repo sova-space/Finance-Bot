@@ -2,8 +2,6 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   Area,
   AreaChart,
-  Bar,
-  BarChart,
   CartesianGrid,
   Cell,
   Pie,
@@ -22,7 +20,7 @@ import { ErrorState } from '../../components/ErrorState';
 import { LoadingState } from '../../components/LoadingState';
 import { DASHBOARD_LIMITS } from '../../config/thresholds';
 import { CHART_COLORS, dominantCurrency, rowsForCurrency, shortMonth } from '../../lib/chartData';
-import { formatMoney } from '../../lib/formatMoney';
+import { formatCompactMoney, formatMoney } from '../../lib/formatMoney';
 
 interface OverviewData {
   accounts: Account[];
@@ -119,7 +117,7 @@ export function OverviewScreen() {
         </Card>
 
         <Card className="kpi-card" title="Spent this month" subtitle={chartCurrency}>
-          <strong>{formatMoney(spendByCurrency[chartCurrency] ?? 0, chartCurrency)}</strong>
+          <strong>{formatCompactMoney(spendByCurrency[chartCurrency] ?? 0, chartCurrency)}</strong>
           <span>{biggestCategory ? `${biggestCategory.category} leads spend` : 'No spending yet'}</span>
         </Card>
 
@@ -193,24 +191,33 @@ export function OverviewScreen() {
           )}
         </Card>
 
-        <Card className="chart-card wide" title="Category ranking" subtitle="Fast scan of what moved money">
+        <Card className="chart-card wide category-pocket-card" title="Category pockets" subtitle="Moneko-style spend buckets">
           {topCategories.length === 0 ? (
             <EmptyState>No category data.</EmptyState>
           ) : (
-            <div className="chart-frame medium">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={topCategories} layout="vertical" margin={{ left: 4, right: 18, top: 8, bottom: 8 }}>
-                  <CartesianGrid stroke="rgba(14,15,12,0.08)" horizontal={false} />
-                  <XAxis type="number" hide />
-                  <YAxis dataKey="category" type="category" width={110} axisLine={false} tickLine={false} tick={{ fill: '#454745', fontSize: 12 }} />
-                  <Tooltip formatter={(value) => formatMoney(Number(value), chartCurrency)} contentStyle={{ borderRadius: 18 }} />
-                  <Bar dataKey="amount" radius={[0, 999, 999, 0]} barSize={18}>
-                    {topCategories.map((row, index) => (
-                      <Cell key={row.category} fill={CHART_COLORS[index % CHART_COLORS.length]} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
+            <div className="pocket-grid">
+              {topCategories.map((row, index) => {
+                const share = totalSpend > 0 ? Math.round((row.amount / totalSpend) * 100) : 0;
+                return (
+                  <div className="pocket-card" key={row.category}>
+                    <div className="pocket-topline">
+                      <span className="pocket-dot" style={{ background: CHART_COLORS[index % CHART_COLORS.length] }} />
+                      <strong>{row.category}</strong>
+                      <em>{share}%</em>
+                    </div>
+                    <div className="pocket-amount">{formatMoney(row.amount, row.currency)}</div>
+                    <div className="pocket-track">
+                      <div
+                        className="pocket-fill"
+                        style={{
+                          width: `${share}%`,
+                          background: CHART_COLORS[index % CHART_COLORS.length],
+                        }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
         </Card>
