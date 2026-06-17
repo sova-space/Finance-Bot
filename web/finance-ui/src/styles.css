@@ -65,9 +65,9 @@ h2 {
 .side-nav { display: grid; gap: 6px; }
 .nav-item { width: 100%; min-height: 42px; border: 0; border-radius: 999px; display: flex; align-items: center; gap: 10px; padding: 7px 11px; background: transparent; color: var(--muted); cursor: pointer; transition: transform 160ms ease, background 160ms ease, color 160ms ease; }
 .nav-item:hover { transform: translateX(2px); background: rgba(22, 51, 0, 0.06); color: var(--text); }
-.nav-item.active { background: transparent; color: var(--text); }
+.nav-item.active { background: var(--surface-strong); color: #fff; }
 .nav-glyph { width: 24px; height: 24px; display: grid; place-items: center; background: transparent; font-size: 11px; font-weight: 850; }
-.nav-item.active .nav-glyph { background: transparent; color: var(--accent-dark); }
+.nav-item.active .nav-glyph { background: transparent; color: var(--accent); }
 .sidebar-note { margin-top: auto; min-height: 44px; border-radius: 24px; padding: 12px 14px; display: flex; align-items: center; gap: 8px; color: var(--muted); background: var(--surface-soft); font-size: 13px; font-weight: 650; }
 .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 4px rgba(159,232,112,0.25); }
 .app-content { width: min(1480px, 100%); padding: 24px clamp(18px, 3vw, 38px) 44px; }
@@ -123,19 +123,21 @@ h2 {
 .recharts-tooltip-wrapper { outline: none; }
 .card-inline-toolbar { display: flex; justify-content: flex-end; margin: -2px 0 8px; }
 .cashflow-card { min-height: 330px; }
-.cashflow-diagram { width: 100%; min-height: 250px; overflow: hidden; }
-.cashflow-diagram svg { display: block; width: 100%; height: 250px; }
-.d3-cashflow-links path { fill: none; stroke-linecap: round; mix-blend-mode: multiply; }
-.d3-node-title { fill: var(--text); font-size: 12px; font-weight: 850; pointer-events: none; }
-.d3-node-value { fill: var(--muted); font-size: 11px; font-weight: 820; font-variant-numeric: tabular-nums; pointer-events: none; }
-.cashflow-node rect { fill: rgba(255,255,255,0.82); stroke: rgba(14,15,12,0.08); }
-.cashflow-node.center rect { fill: #10120f; stroke: #10120f; }
-.cashflow-node.source rect { fill: rgba(159,232,112,0.18); stroke: rgba(76,127,34,0.18); }
-.cashflow-node .node-title { fill: var(--muted); font-size: 12px; font-weight: 820; }
-.cashflow-node .node-value { fill: var(--text); font-size: 13px; font-weight: 850; font-variant-numeric: tabular-nums; }
-.cashflow-node.center .node-title { fill: rgba(255,255,255,0.58); }
-.cashflow-node.center .node-value { fill: #fff; }
-.cashflow-empty { min-height: 280px; display: grid; place-items: center; color: var(--muted); font-weight: 700; }
+.cashflow-range-menu { display: inline-flex; gap: 4px; padding: 4px; border-radius: 999px; background: rgba(14,15,12,0.06); }
+.cashflow-range-menu button { border: 0; border-radius: 999px; padding: 8px 12px; background: transparent; color: var(--muted); font-size: 12px; font-weight: 850; cursor: pointer; }
+.cashflow-range-menu button.active { background: var(--surface-strong); color: #fff; }
+.cashflow-donut-layout { min-height: 250px; display: grid; grid-template-columns: 250px minmax(0, 1fr); gap: 22px; align-items: center; }
+.cashflow-donut-wrap { position: relative; width: 250px; height: 250px; }
+.cashflow-donut-center { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; pointer-events: none; }
+.cashflow-donut-center span { color: var(--muted); font-size: 11px; font-weight: 850; text-transform: uppercase; letter-spacing: 0.09em; }
+.cashflow-donut-center strong { color: var(--text); font-size: 24px; font-weight: 900; letter-spacing: -0.05em; font-variant-numeric: tabular-nums; }
+.cashflow-breakdown-list { display: grid; gap: 8px; }
+.cashflow-breakdown-row { display: grid; grid-template-columns: 10px minmax(0, 1fr) auto 38px; gap: 10px; align-items: center; min-height: 36px; }
+.cashflow-color { width: 10px; height: 10px; border-radius: 50%; }
+.cashflow-breakdown-row strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; font-weight: 850; }
+.cashflow-breakdown-row em { font-style: normal; font-size: 13px; font-weight: 850; font-variant-numeric: tabular-nums; }
+.cashflow-breakdown-row small { color: var(--muted); text-align: right; font-size: 12px; font-weight: 800; }
+.cashflow-empty { min-height: 250px; display: grid; place-items: center; color: var(--muted); font-weight: 700; }
 .donut-layout { display: grid; gap: 10px; }
 .donut-report-layout { display: grid; grid-template-columns: 280px minmax(0, 1fr); gap: 22px; align-items: center; }
 .donut-center { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; pointer-events: none; }

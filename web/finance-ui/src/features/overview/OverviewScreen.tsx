@@ -6,8 +6,8 @@ import { Card } from '../../components/Card';
 import { EmptyState } from '../../components/EmptyState';
 import { ErrorState } from '../../components/ErrorState';
 import { LoadingState } from '../../components/LoadingState';
-import { PeriodSelector } from '../../components/PeriodSelector';
 import type { AnalyticsPeriod } from '../../config/periods';
+import { lightFeedback } from '../../lib/runtime';
 import { CHART_COLORS, convertAmount, preferredCurrency, rowsForCurrency } from '../../lib/chartData';
 import { formatCompactMoney, formatMoney } from '../../lib/formatMoney';
 import { usePreferences } from '../../lib/preferences';
@@ -38,6 +38,31 @@ function isInternalTransfer(tx: TransactionItem) {
     description.includes('transfer') ||
     description.includes('переказ') ||
     description.includes('поповнення')
+  );
+}
+
+function CashflowRangeMenu({ value, onChange }: { value: AnalyticsPeriod; onChange: (period: AnalyticsPeriod) => void }) {
+  const items: Array<{ id: AnalyticsPeriod; label: string }> = [
+    { id: 'this_month', label: 'This month' },
+    { id: 'last_month', label: 'Last month' },
+  ];
+
+  return (
+    <div className="cashflow-range-menu" aria-label="Cashflow date range">
+      {items.map((item) => (
+        <button
+          className={item.id === value ? 'active' : ''}
+          key={item.id}
+          onClick={() => {
+            lightFeedback();
+            onChange(item.id);
+          }}
+          type="button"
+        >
+          {item.label}
+        </button>
+      ))}
+    </div>
   );
 }
 
@@ -136,7 +161,7 @@ export function OverviewScreen() {
       <div className="analytics-grid overview-grid">
         <Card className="chart-card wide cashflow-card" title="Cashflow" subtitle={`Spending flow · ${chartCurrency}`}>
           <div className="card-inline-toolbar">
-            <PeriodSelector value={period} onChange={setPeriod} />
+            <CashflowRangeMenu value={period} onChange={setPeriod} />
           </div>
           <CashflowDiagram categories={topCategories} currency={chartCurrency} expenses={currentMonthSpend} />
         </Card>
