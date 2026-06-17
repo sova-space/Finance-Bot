@@ -132,14 +132,14 @@ h2 {
 .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 4px rgba(159,232,112,0.25); }
 .app-content {
   width: min(1440px, 100%);
-  padding: 36px clamp(20px, 4vw, 54px) 64px;
+  padding: 28px clamp(18px, 3vw, 42px) 48px;
 }
 .topbar {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 24px;
-  margin-bottom: 28px;
+  margin-bottom: 20px;
 }
 .topbar-pill {
   border-radius: 999px;
@@ -150,24 +150,24 @@ h2 {
   font-weight: 750;
   white-space: nowrap;
 }
-.dashboard-page { display: grid; gap: 22px; }
+.dashboard-page { display: grid; gap: 16px; }
 .hero-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1.45fr) repeat(2, minmax(220px, 0.55fr));
-  gap: 18px;
+  grid-template-columns: minmax(0, 1.2fr) repeat(2, minmax(200px, 0.65fr));
+  gap: 14px;
 }
 .analytics-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 18px;
+  gap: 14px;
   align-items: stretch;
 }
 .wide { grid-column: span 2; }
 .card {
   background: rgba(255,255,255,0.86);
   border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 20px;
+  border-radius: 24px;
+  padding: 16px;
   box-shadow: 0 18px 60px rgba(14,15,12,0.06);
   overflow: hidden;
 }
@@ -198,21 +198,21 @@ h2 {
 }
 .card-head p { color: var(--muted); font-size: 12px; font-weight: 700; text-transform: capitalize; }
 .card-dark .card-head h3, .card-dark .eyebrow { color: rgba(255,255,255,0.7); }
-.hero-card { min-height: 230px; display: flex; flex-direction: column; justify-content: space-between; }
+.hero-card { min-height: 168px; display: flex; flex-direction: column; justify-content: space-between; }
 .hero-metrics { display: grid; gap: 16px; }
 .hero-metrics div { display: grid; gap: 4px; }
 .hero-metrics span { color: rgba(255,255,255,0.58); font-weight: 750; }
 .hero-metrics strong {
-  font-size: clamp(30px, 3.4vw, 48px);
+  font-size: clamp(24px, 2.7vw, 38px);
   line-height: 0.96;
   letter-spacing: -0.045em;
   font-weight: 850;
   font-variant-numeric: tabular-nums;
 }
-.kpi-card { min-height: 170px; display: flex; flex-direction: column; justify-content: space-between; }
+.kpi-card { min-height: 136px; display: flex; flex-direction: column; justify-content: space-between; }
 .kpi-card strong {
   display: block;
-  font-size: clamp(22px, 2.1vw, 30px);
+  font-size: clamp(19px, 1.7vw, 25px);
   line-height: 1.02;
   letter-spacing: -0.035em;
   font-weight: 820;
@@ -220,11 +220,11 @@ h2 {
   overflow-wrap: anywhere;
 }
 .kpi-card span { color: var(--muted); font-weight: 700; }
-.chart-card { min-height: 360px; }
+.chart-card { min-height: 300px; }
 .chart-frame { position: relative; width: 100%; }
-.chart-frame.tall { height: 310px; }
+.chart-frame.tall { height: 240px; }
 .chart-frame.medium { height: 300px; }
-.chart-frame.donut { height: 230px; }
+.chart-frame.donut { height: 190px; }
 .chart-frame.spending-bars { height: 430px; }
 .recharts-wrapper text { font-family: inherit; }
 .recharts-tooltip-wrapper { outline: none; }
@@ -241,12 +241,12 @@ h2 {
 .donut-center strong { font-size: 18px; letter-spacing: -0.035em; font-weight: 800; }
 .pocket-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
 }
 .pocket-card {
-  min-height: 112px;
-  padding: 14px;
+  min-height: 82px;
+  padding: 11px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -277,8 +277,8 @@ h2 {
 }
 .pocket-dot { width: 10px; height: 10px; border-radius: 50%; }
 .pocket-amount {
-  margin-top: 10px;
-  font-size: clamp(18px, 2vw, 24px);
+  margin-top: 7px;
+  font-size: clamp(15px, 1.45vw, 19px);
   line-height: 1.05;
   letter-spacing: -0.035em;
   font-weight: 820;
@@ -286,8 +286,8 @@ h2 {
   overflow-wrap: anywhere;
 }
 .pocket-track {
-  height: 8px;
-  margin-top: 12px;
+  height: 6px;
+  margin-top: 9px;
   overflow: hidden;
   border-radius: 999px;
   background: rgba(14,15,12,0.08);

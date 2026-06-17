@@ -78,7 +78,7 @@ export function OverviewScreen() {
   );
   const chartCurrency = useMemo(() => dominantCurrency(data?.spending ?? []), [data?.spending]);
   const topCategories = useMemo(
-    () => rowsForCurrency([...(data?.spending ?? [])].sort((a, b) => b.amount - a.amount), chartCurrency).slice(0, 7),
+    () => rowsForCurrency([...(data?.spending ?? [])].sort((a, b) => b.amount - a.amount), chartCurrency).slice(0, 12),
     [chartCurrency, data?.spending],
   );
   const trendRows = useMemo(
@@ -205,7 +205,7 @@ export function OverviewScreen() {
                       <strong>{row.category}</strong>
                       <em>{share}%</em>
                     </div>
-                    <div className="pocket-amount">{formatMoney(row.amount, row.currency)}</div>
+                    <div className="pocket-amount">{formatCompactMoney(row.amount, row.currency)}</div>
                     <div className="pocket-track">
                       <div
                         className="pocket-fill"
