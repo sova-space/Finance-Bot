@@ -4,7 +4,7 @@ from functools import lru_cache
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from finance_api.core.product import DEFAULT_AGENT_MODEL, DEFAULT_MINI_APP_URL
+from finance_api.core.product import DEFAULT_AGENT_MODEL, DEFAULT_WEB_APP_URL
 
 
 class Settings(BaseSettings):
@@ -33,7 +33,7 @@ class Settings(BaseSettings):
     telegram_chat_id: int | None = None
     telegram_finance_topic_id: int | None = None
 
-    mini_app_url: str = DEFAULT_MINI_APP_URL
+    web_app_url: str = DEFAULT_WEB_APP_URL
 
     openrouter_api_key: str
     agent_model: str = DEFAULT_AGENT_MODEL

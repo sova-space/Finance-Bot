@@ -34,7 +34,7 @@ TELEGRAM_BOT_TOKEN=
 TELEGRAM_OWNER_ID=
 MONOBANK_TOKEN=
 OPENROUTER_API_KEY=
-MINI_APP_URL=
+WEB_APP_URL=
 ```
 
 4. Run locally:
@@ -61,7 +61,7 @@ uv run uvicorn finance_api.main:app --reload
 5. Set:
 
 ```text
-MINI_APP_URL=https://<railway-domain>/miniapp
+WEB_APP_URL=https://<railway-domain>/app
 ```
 
 6. Deploy.

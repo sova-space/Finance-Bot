@@ -3,11 +3,13 @@
 import asyncio
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 import structlog
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
 
 from finance_api.core.config import settings
 from finance_api.core.logging.setup import configure_logging
@@ -21,10 +23,10 @@ from finance_api.routers import (
     accounts,
     budgets,
     buy_list,
+    dashboard,
     debts,
     goals,
     health,
-    miniapp,
     pockets,
     sync,
     transactions,
@@ -166,7 +168,16 @@ def create_app() -> FastAPI:
     )
 
     app.include_router(health.router, tags=["health"])
-    app.include_router(miniapp.router, tags=["miniapp"])
+    app.include_router(dashboard.router, tags=["dashboard"])
+
+    dashboard_assets_dir = Path(__file__).parent / "static" / "app" / "assets"
+    if dashboard_assets_dir.exists():
+        app.mount(
+            "/app/assets",
+            StaticFiles(directory=dashboard_assets_dir),
+            name="dashboard-assets",
+        )
+
     app.include_router(accounts.router, prefix="/accounts", tags=["accounts"])
     app.include_router(
         transactions.router,

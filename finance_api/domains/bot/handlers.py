@@ -255,8 +255,8 @@ async def _do_sync(message: Message, user_id=None) -> None:
 
 
 async def cmd_finance_app(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle /finance_app command — open the Mini App."""
-    url = settings.mini_app_url
+    """Handle /finance_app command — open the web dashboard."""
+    url = settings.web_app_url
     # Use a plain URL button everywhere — InlineKeyboardButton.web_app requires
     # the domain to be approved in BotFather, which fails with Button_type_invalid
     # until that is configured.

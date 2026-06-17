@@ -1,4 +1,4 @@
-"""Mini App HTML endpoint and bot trigger."""
+"""Browser dashboard endpoint and bot trigger."""
 
 import os
 import threading
@@ -43,18 +43,22 @@ class LanguageRequest(BaseModel):
 
 
 _STATIC_DIR = os.path.join(os.path.dirname(__file__), "..", "static")
+_DASHBOARD_BUILD_DIR = os.path.join(_STATIC_DIR, "app")
 
 
-@router.get("/miniapp", include_in_schema=False)
-async def miniapp() -> FileResponse:
-    """Serve the Telegram Mini App HTML shell."""
-    path = os.path.join(_STATIC_DIR, "miniapp.html")
-    return FileResponse(path, media_type="text/html")
+def _dashboard_shell_path() -> str:
+    return os.path.join(_DASHBOARD_BUILD_DIR, "index.html")
+
+
+@router.get("/app", include_in_schema=False)
+async def dashboard_app() -> FileResponse:
+    """Serve the browser-first React finance dashboard."""
+    return FileResponse(_dashboard_shell_path(), media_type="text/html")
 
 
 @router.post("/bot/open", include_in_schema=False)
 async def bot_open() -> dict:
-    """Send the Mini App button to the #finance topic. Called by Hermes skill."""
+    """Send the dashboard button to the #finance topic. Called by Hermes skill."""
     send_finance_app_button()
     return {"ok": True}
 

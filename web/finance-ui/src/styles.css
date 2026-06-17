@@ -1,0 +1,118 @@
+@import "tailwindcss";
+
+*, *::before, *::after { box-sizing: border-box; }
+:root {
+  --bg: var(--tg-theme-bg-color, #ffffff);
+  --text: var(--tg-theme-text-color, #111111);
+  --hint: var(--tg-theme-hint-color, #777777);
+  --link: var(--tg-theme-link-color, #2678b6);
+  --button: var(--tg-theme-button-color, #2678b6);
+  --button-text: var(--tg-theme-button-text-color, #ffffff);
+  --secondary-bg: var(--tg-theme-secondary-bg-color, #f2f3f5);
+  --danger: var(--tg-theme-destructive-text-color, #cc2936);
+  --success: #24a148;
+  --warning: #d89000;
+  --radius: 14px;
+  --tab-height: 62px;
+  --page-padding: 16px;
+  --chart-1: #2678b6;
+  --chart-2: #24a148;
+  --chart-3: #d89000;
+  --chart-4: #8b5cf6;
+  --chart-5: #ef4444;
+}
+html, body, #root { min-height: 100%; margin: 0; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 15px;
+  line-height: 1.4;
+  overscroll-behavior: none;
+}
+button { font: inherit; }
+h1 { font-size: 24px; line-height: 1.15; margin: 0 0 16px; }
+h3 { font-size: 14px; margin: 0 0 12px; color: var(--hint); text-transform: uppercase; letter-spacing: 0.04em; }
+.app-shell { min-height: 100vh; min-height: 100dvh; }
+.app-content { padding: var(--page-padding); padding-bottom: calc(var(--tab-height) + env(safe-area-inset-bottom) + 22px); }
+.tab-bar {
+  position: fixed;
+  z-index: 20;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  min-height: calc(var(--tab-height) + env(safe-area-inset-bottom));
+  padding-bottom: env(safe-area-inset-bottom);
+  background: var(--secondary-bg);
+  border-top: 1px solid rgba(127,127,127,0.16);
+}
+.tab {
+  border: 0;
+  background: transparent;
+  color: var(--hint);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  min-width: 0;
+  padding: 8px 4px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.tab.active { color: var(--button); }
+.tab-icon { font-size: 21px; line-height: 1; }
+.card {
+  background: var(--secondary-bg);
+  border-radius: var(--radius);
+  padding: 14px;
+  margin: 0 0 12px;
+}
+.card-warning { outline: 1px solid color-mix(in srgb, var(--warning), transparent 55%); }
+.card-danger { outline: 1px solid color-mix(in srgb, var(--danger), transparent 55%); }
+.card-success { outline: 1px solid color-mix(in srgb, var(--success), transparent 55%); }
+.metric-row, .bar-row-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.metric-row { padding: 8px 0; border-bottom: 1px solid rgba(127,127,127,0.12); }
+.metric-row:last-child { border-bottom: 0; }
+.metric-row span, .bar-row-label span { color: var(--text); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.metric-row strong, .bar-row-label strong { white-space: nowrap; font-weight: 650; }
+.bar-row { padding: 8px 0 10px; }
+.bar-row.muted .bar-fill { background: var(--hint); }
+.bar-track { height: 7px; margin-top: 7px; overflow: hidden; border-radius: 999px; background: rgba(127,127,127,0.18); }
+.bar-fill { height: 100%; border-radius: inherit; background: var(--button); transition: width 180ms ease; }
+.bar-fill.warning { background: var(--warning); }
+.bar-fill.danger { background: var(--danger); }
+.period-selector {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  margin: 0 0 12px;
+  padding-bottom: 2px;
+}
+.period-selector button {
+  border: 0;
+  border-radius: 999px;
+  background: var(--secondary-bg);
+  color: var(--text);
+  padding: 8px 11px;
+  white-space: nowrap;
+}
+.period-selector button.active { background: var(--button); color: var(--button-text); }
+.skeleton {
+  height: 82px;
+  border-radius: var(--radius);
+  background: linear-gradient(90deg, rgba(127,127,127,0.10), rgba(127,127,127,0.22), rgba(127,127,127,0.10));
+  background-size: 200% 100%;
+  animation: shimmer 1.2s infinite;
+  margin-bottom: 12px;
+}
+@keyframes shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+.error-msg { color: var(--danger); background: var(--secondary-bg); border-radius: var(--radius); padding: 12px; }
+.empty-state { color: var(--hint); padding: 14px 0; text-align: center; }
