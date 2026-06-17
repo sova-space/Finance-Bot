@@ -16,7 +16,6 @@ import { CashflowDiagram } from './CashflowDiagram';
 interface OverviewData {
   accounts: Account[];
   rates: FxRate[];
-  spending: SpendingRow[];
   transactions: TransactionItem[];
 }
 
@@ -41,6 +40,28 @@ function isInternalTransfer(tx: TransactionItem) {
   );
 }
 
+function spendingRowsFromTransactions(transactions: TransactionItem[]): SpendingRow[] {
+  const totals = new Map<string, SpendingRow>();
+
+  transactions
+    .filter((tx) => tx.amount < 0 && !tx.is_pending && !isInternalTransfer(tx))
+    .forEach((tx) => {
+      const category = tx.category ?? 'Uncategorized';
+      const key = `${category}:${tx.currency}`;
+      const existing = totals.get(key) ?? { category, currency: tx.currency, amount: 0 };
+      existing.amount += Math.abs(tx.amount);
+      totals.set(key, existing);
+    });
+
+  return [...totals.values()].sort((a, b) => b.amount - a.amount);
+}
+
+function periodSubtitle(period: AnalyticsPeriod) {
+  const now = new Date();
+  const date = period === 'last_month' ? new Date(now.getFullYear(), now.getMonth() - 1, 1) : now;
+  return date.toLocaleDateString('en', { month: 'long', year: 'numeric' });
+}
+
 function CashflowRangeMenu({ value, onChange }: { value: AnalyticsPeriod; onChange: (period: AnalyticsPeriod) => void }) {
   const items: Array<{ id: AnalyticsPeriod; label: string }> = [
     { id: 'this_month', label: 'This month' },
@@ -48,20 +69,24 @@ function CashflowRangeMenu({ value, onChange }: { value: AnalyticsPeriod; onChan
   ];
 
   return (
-    <div className="cashflow-range-menu" aria-label="Cashflow date range">
-      {items.map((item) => (
-        <button
-          className={item.id === value ? 'active' : ''}
-          key={item.id}
-          onClick={() => {
-            lightFeedback();
-            onChange(item.id);
-          }}
-          type="button"
-        >
-          {item.label}
-        </button>
-      ))}
+    <div className="cashflow-date-selector" aria-label="Cashflow date range">
+      <span>Date range</span>
+      <div>
+        {items.map((item) => (
+          <button
+            className={item.id === value ? 'active' : ''}
+            key={item.id}
+            onClick={() => {
+              lightFeedback();
+              onChange(item.id);
+            }}
+            type="button"
+          >
+            <strong>{item.label}</strong>
+            <small>{periodSubtitle(item.id)}</small>
+          </button>
+        ))}
+      </div>
     </div>
   );
 }
@@ -76,14 +101,13 @@ export function OverviewScreen() {
     let cancelled = false;
     async function load() {
       try {
-        const [accounts, rates, spending, transactions] = await Promise.all([
+        const [accounts, rates, transactions] = await Promise.all([
           apiGet<Account[]>('/accounts'),
           apiGet<FxRate[]>('/fx/rates').catch(() => []),
-          apiGet<SpendingRow[]>(`/transactions/spending?period=${period}&exclude_uncategorized=true`),
           apiGet<TransactionItem[]>(`/transactions?period=${period}&limit=200`),
         ]);
         if (!cancelled) {
-          setData({ accounts, rates, spending, transactions });
+          setData({ accounts, rates, transactions });
         }
       } catch (caught) {
         if (!cancelled) {
@@ -98,8 +122,8 @@ export function OverviewScreen() {
   }, [period]);
 
   const spendingRows = useMemo(
-    () => (data?.spending ?? []).filter((row) => !INTERNAL_CATEGORIES.has(row.category)),
-    [data?.spending],
+    () => spendingRowsFromTransactions(data?.transactions ?? []),
+    [data?.transactions],
   );
   const rawSpendByCurrency = useMemo(
     () => sumByCurrency(spendingRows, (row) => row.currency, (row) => row.amount),

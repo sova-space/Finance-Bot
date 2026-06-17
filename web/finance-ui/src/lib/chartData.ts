@@ -1,7 +1,7 @@
 import type { FxRate, SpendingRow } from '../api/types';
 import type { CurrencyPreference } from './preferences';
 
-export const CHART_COLORS = ['#163300', '#4c7f22', '#8bc34a', '#b5ef7d', '#ffd166', '#f4a261', '#2a9d8f'];
+export const CHART_COLORS = ['#2563eb', '#f97316', '#16a34a', '#9333ea', '#dc2626', '#0891b2', '#ca8a04', '#db2777', '#475569'];
 
 export function dominantCurrency(rows: SpendingRow[]) {
   const totals = rows.reduce<Record<string, number>>((acc, row) => {

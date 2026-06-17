@@ -123,9 +123,13 @@ h2 {
 .recharts-tooltip-wrapper { outline: none; }
 .card-inline-toolbar { display: flex; justify-content: flex-end; margin: -2px 0 8px; }
 .cashflow-card { min-height: 330px; }
-.cashflow-range-menu { display: inline-flex; gap: 4px; padding: 4px; border-radius: 999px; background: rgba(14,15,12,0.06); }
-.cashflow-range-menu button { border: 0; border-radius: 999px; padding: 8px 12px; background: transparent; color: var(--muted); font-size: 12px; font-weight: 850; cursor: pointer; }
-.cashflow-range-menu button.active { background: var(--surface-strong); color: #fff; }
+.cashflow-date-selector { display: grid; gap: 6px; justify-items: end; }
+.cashflow-date-selector > span { color: var(--muted); font-size: 11px; font-weight: 850; text-transform: uppercase; letter-spacing: 0.08em; }
+.cashflow-date-selector > div { display: inline-flex; gap: 6px; padding: 5px; border-radius: 18px; background: rgba(14,15,12,0.06); }
+.cashflow-date-selector button { min-width: 116px; border: 0; border-radius: 14px; padding: 8px 11px; display: grid; gap: 2px; text-align: left; background: transparent; color: var(--muted); cursor: pointer; }
+.cashflow-date-selector button strong { font-size: 12px; font-weight: 900; }
+.cashflow-date-selector button small { font-size: 10px; font-weight: 750; color: inherit; opacity: 0.72; }
+.cashflow-date-selector button.active { background: var(--surface-strong); color: #fff; box-shadow: 0 8px 18px rgba(14,15,12,0.14); }
 .cashflow-donut-layout { min-height: 250px; display: grid; grid-template-columns: 250px minmax(0, 1fr); gap: 22px; align-items: center; }
 .cashflow-donut-wrap { position: relative; width: 250px; height: 250px; }
 .cashflow-donut-center { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; pointer-events: none; }
