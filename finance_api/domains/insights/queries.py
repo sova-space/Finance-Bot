@@ -229,6 +229,17 @@ def get_spending_by_category(
             q = q.where(Transaction.mode == mode)
         if exclude_uncategorized:
             q = q.where(Transaction.category.is_not(None))  # type: ignore[union-attr]
+            q = q.where(
+                Transaction.category.notin_(  # type: ignore[union-attr]
+                    [
+                        cat.CASHBACK,
+                        cat.COUPLE_TRANSFER,
+                        cat.INCOME,
+                        cat.PARTNER,
+                        cat.FINANCE,
+                    ]
+                )
+            )
         q = q.group_by(Transaction.category, Transaction.currency)
         rows = session.exec(q).all()
         return [

@@ -13,20 +13,10 @@ interface AppShellProps {
 
 const NAV_LABEL_KEYS: Record<NavItemId, LabelKey> = {
   overview: 'navOverview',
-  spending: 'navSpending',
-  transactions: 'navTransactions',
-  accounts: 'navAccounts',
-  budget: 'navBudget',
-  plan: 'navPlan',
 };
 
 const TITLE_KEYS: Record<NavItemId, LabelKey> = {
   overview: 'titleOverview',
-  spending: 'titleSpending',
-  transactions: 'titleTransactions',
-  accounts: 'titleAccounts',
-  budget: 'titleBudget',
-  plan: 'titlePlan',
 };
 
 const currencies: CurrencyPreference[] = ['auto', 'UAH', 'USD', 'EUR'];
@@ -60,7 +50,7 @@ export function AppShell({ activeTab, children, onTabChange }: AppShellProps) {
           </div>
         </div>
 
-        <nav className="side-nav" aria-label="Main navigation">
+        <nav className="side-nav single-nav" aria-label="Main navigation">
           {NAV_ITEMS.map((item) => (
             <button
               aria-current={activeTab === item.id ? 'page' : undefined}

@@ -20,12 +20,25 @@ interface OverviewData {
   transactions: TransactionItem[];
 }
 
+const INTERNAL_CATEGORIES = new Set(['Income', 'Cashback', 'Couple Transfer', 'Partner', 'Finance']);
+
 function sumByCurrency<T>(rows: T[], getCurrency: (row: T) => string, getAmount: (row: T) => number) {
   return rows.reduce<Record<string, number>>((totals, row) => {
     const currency = getCurrency(row);
     totals[currency] = (totals[currency] ?? 0) + getAmount(row);
     return totals;
   }, {});
+}
+
+function isInternalTransfer(tx: TransactionItem) {
+  const category = tx.category ?? '';
+  const description = tx.description.toLowerCase();
+  return (
+    INTERNAL_CATEGORIES.has(category) ||
+    description.includes('transfer') ||
+    description.includes('переказ') ||
+    description.includes('поповнення')
+  );
 }
 
 export function OverviewScreen() {
@@ -59,11 +72,15 @@ export function OverviewScreen() {
     };
   }, [period]);
 
-  const rawSpendByCurrency = useMemo(
-    () => sumByCurrency(data?.spending ?? [], (row) => row.currency, (row) => row.amount),
+  const spendingRows = useMemo(
+    () => (data?.spending ?? []).filter((row) => !INTERNAL_CATEGORIES.has(row.category)),
     [data?.spending],
   );
-  const chartCurrency = useMemo(() => preferredCurrency(data?.spending ?? [], currency), [currency, data?.spending]);
+  const rawSpendByCurrency = useMemo(
+    () => sumByCurrency(spendingRows, (row) => row.currency, (row) => row.amount),
+    [spendingRows],
+  );
+  const chartCurrency = useMemo(() => preferredCurrency(spendingRows, currency), [currency, spendingRows]);
   const convertedBalance = useMemo(
     () =>
       (data?.accounts ?? []).reduce(
@@ -73,17 +90,14 @@ export function OverviewScreen() {
     [chartCurrency, data?.accounts, data?.rates],
   );
   const topCategories = useMemo(
-    () => rowsForCurrency(data?.spending ?? [], chartCurrency, data?.rates ?? []).slice(0, 12),
-    [chartCurrency, data?.rates, data?.spending],
+    () => rowsForCurrency(spendingRows, chartCurrency, data?.rates ?? []).slice(0, 12),
+    [chartCurrency, data?.rates, spendingRows],
   );
-  const periodIncome = useMemo(
-    () =>
-      (data?.transactions ?? [])
-        .filter((row) => row.amount > 0)
-        .reduce((sum, row) => sum + convertAmount(row.amount, row.currency, chartCurrency, data?.rates ?? []), 0),
-    [chartCurrency, data?.rates, data?.transactions],
+  const transactions = useMemo(
+    () => (data?.transactions ?? []).filter((tx) => !isInternalTransfer(tx)),
+    [data?.transactions],
   );
-  const recentTransactions = useMemo(() => (data?.transactions ?? []).slice(0, 6), [data?.transactions]);
+  const recentTransactions = transactions.slice(0, 12);
   const totalSpend = topCategories.reduce((sum, row) => sum + row.amount, 0);
   const currentMonthSpend = data?.rates.length ? totalSpend : (rawSpendByCurrency[chartCurrency] ?? totalSpend);
   const biggestCategory = topCategories[0];
@@ -92,8 +106,8 @@ export function OverviewScreen() {
   if (!data) return <LoadingState />;
 
   return (
-    <section className="dashboard-page">
-      <div className="hero-grid">
+    <section className="dashboard-page overview-only-page">
+      <div className="hero-grid overview-hero-grid">
         <Card tone="dark" className="hero-card">
           <p className="eyebrow">Net balance</p>
           {data.accounts.length === 0 ? (
@@ -113,39 +127,40 @@ export function OverviewScreen() {
           <span>{biggestCategory ? `${biggestCategory.category} leads spend` : 'No spending yet'}</span>
         </Card>
 
-        <Card className="kpi-card" title="Top category" subtitle="Current month">
+        <Card className="kpi-card" title="Top category" subtitle="Current period">
           <strong>{biggestCategory?.category ?? '—'}</strong>
           <span>{biggestCategory ? formatMoney(biggestCategory.amount, biggestCategory.currency) : 'No categories yet'}</span>
         </Card>
       </div>
 
-      <div className="analytics-grid">
-        <Card className="chart-card wide cashflow-card" title="Cashflow" subtitle={`Income → spending · ${chartCurrency}`}>
+      <div className="analytics-grid overview-grid">
+        <Card className="chart-card wide cashflow-card" title="Cashflow" subtitle={`Spending flow · ${chartCurrency}`}>
           <div className="card-inline-toolbar">
             <PeriodSelector value={period} onChange={setPeriod} />
           </div>
-          <CashflowDiagram
-            categories={topCategories}
-            currency={chartCurrency}
-            expenses={currentMonthSpend}
-            income={periodIncome || currentMonthSpend}
-          />
+          <CashflowDiagram categories={topCategories} currency={chartCurrency} expenses={currentMonthSpend} />
         </Card>
 
-        <Card className="chart-card recent-card" title="Recent activity" subtitle={period.replace('_', ' ')}>
-          {recentTransactions.length === 0 ? (
-            <EmptyState>No transactions for this period.</EmptyState>
+        <Card className="chart-card category-pocket-card" title="Categories" subtitle="Current period">
+          {topCategories.length === 0 ? (
+            <EmptyState>No category data.</EmptyState>
           ) : (
-            <div className="recent-list">
-              {recentTransactions.map((tx, index) => {
-                const converted = convertAmount(tx.amount, tx.currency, chartCurrency, data.rates);
+            <div className="category-board">
+              {topCategories.map((row, index) => {
+                const share = totalSpend > 0 ? Math.round((row.amount / totalSpend) * 100) : 0;
                 return (
-                  <div className="recent-row" key={`${tx.date}-${tx.description}-${index}`}>
-                    <div>
-                      <strong>{tx.description}</strong>
-                      <span>{tx.category ?? tx.date}</span>
+                  <div className="category-tile" key={row.category}>
+                    <div className="category-rank" style={{ background: CHART_COLORS[index % CHART_COLORS.length] }}>{index + 1}</div>
+                    <div className="category-body">
+                      <div className="category-mainline">
+                        <strong>{row.category}</strong>
+                        <em>{formatCompactMoney(row.amount, row.currency)}</em>
+                      </div>
+                      <div className="category-meta"><span>{share}% of spending</span></div>
+                      <div className="category-rail">
+                        <div style={{ width: `${share}%`, background: CHART_COLORS[index % CHART_COLORS.length] }} />
+                      </div>
                     </div>
-                    <em className={converted >= 0 ? 'positive' : ''}>{formatMoney(converted, chartCurrency)}</em>
                   </div>
                 );
               })}
@@ -153,30 +168,20 @@ export function OverviewScreen() {
           )}
         </Card>
 
-        <Card className="chart-card wide category-pocket-card" title="Category pockets" subtitle="Moneko-style spend buckets">
-          {topCategories.length === 0 ? (
-            <EmptyState>No category data.</EmptyState>
+        <Card className="wide transactions-bottom-card" title="Transactions" subtitle={`${recentTransactions.length} recent · internal transfers hidden`}>
+          {recentTransactions.length === 0 ? (
+            <EmptyState>No transactions for this period.</EmptyState>
           ) : (
-            <div className="pocket-grid">
-              {topCategories.map((row, index) => {
-                const share = totalSpend > 0 ? Math.round((row.amount / totalSpend) * 100) : 0;
+            <div className="overview-transaction-list">
+              {recentTransactions.map((tx, index) => {
+                const converted = convertAmount(tx.amount, tx.currency, chartCurrency, data.rates);
                 return (
-                  <div className="pocket-card" key={row.category}>
-                    <div className="pocket-topline">
-                      <span className="pocket-dot" style={{ background: CHART_COLORS[index % CHART_COLORS.length] }} />
-                      <strong>{row.category}</strong>
-                      <em>{share}%</em>
+                  <div className="overview-transaction-row" key={`${tx.date}-${tx.description}-${index}`}>
+                    <div>
+                      <strong>{tx.description}</strong>
+                      <span>{tx.category ?? 'Uncategorized'} · {tx.date}</span>
                     </div>
-                    <div className="pocket-amount">{formatCompactMoney(row.amount, row.currency)}</div>
-                    <div className="pocket-track">
-                      <div
-                        className="pocket-fill"
-                        style={{
-                          width: `${share}%`,
-                          background: CHART_COLORS[index % CHART_COLORS.length],
-                        }}
-                      />
-                    </div>
+                    <em className={converted >= 0 ? 'positive' : ''}>{formatMoney(converted, chartCurrency)}</em>
                   </div>
                 );
               })}
