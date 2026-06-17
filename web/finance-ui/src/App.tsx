@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react';
+import { SovaProvider } from '@sova/kit';
+import '@sova/kit/style.css';
 
 import { AppShell } from './components/AppShell';
 import type { NavItemId } from './config/navigation';
@@ -13,8 +15,10 @@ export function App() {
   }, []);
 
   return (
-    <AppShell activeTab={activeTab} onTabChange={setActiveTab}>
-      <OverviewScreen />
-    </AppShell>
+    <SovaProvider theme="finance">
+      <AppShell activeTab={activeTab} onTabChange={setActiveTab}>
+        <OverviewScreen />
+      </AppShell>
+    </SovaProvider>
   );
 }

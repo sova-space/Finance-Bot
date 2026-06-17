@@ -1,3 +1,4 @@
+import { SovaBadge, SovaBrand, SovaButton, SovaNav, SovaShell, SovaTopbar } from '@sova/kit';
 import { useState, type ReactNode } from 'react';
 
 import { apiPost } from '../api/client';
@@ -40,47 +41,33 @@ export function AppShell({ activeTab, children, onTabChange }: AppShellProps) {
   const syncLabel = syncState === 'syncing' ? 'Syncing' : syncState === 'done' ? 'Synced' : syncState === 'error' ? 'Failed' : 'Sync';
 
   return (
-    <div className="app-shell">
-      <aside className="sidebar">
-        <div className="brand-block">
-          <div className="brand-mark">₴</div>
-          <div>
-            <p className="eyebrow">{t('financeBot')}</p>
-            <strong>{t('moneyOs')}</strong>
-          </div>
-        </div>
-
-        <nav className="side-nav single-nav" aria-label="Main navigation">
-          {NAV_ITEMS.map((item) => (
-            <button
-              aria-current={activeTab === item.id ? 'page' : undefined}
-              className={`nav-item ${activeTab === item.id ? 'active' : ''}`}
-              key={item.id}
-              onClick={() => {
+    <SovaShell
+      sidebar={
+        <>
+          <SovaBrand mark="₴" eyebrow={t('financeBot')} title={t('moneyOs')} />
+          <SovaNav
+            items={NAV_ITEMS.map((item) => ({
+              label: t(NAV_LABEL_KEYS[item.id]),
+              active: activeTab === item.id,
+              icon: <span aria-hidden="true">{item.glyph}</span>,
+              onClick: () => {
                 lightFeedback();
                 onTabChange(item.id);
-              }}
-              type="button"
-            >
-              <span className="nav-glyph" aria-hidden="true">{item.glyph}</span>
-              <span>{t(NAV_LABEL_KEYS[item.id])}</span>
-            </button>
-          ))}
-        </nav>
-
-        <div className="sidebar-note">
-          <span className="status-dot" />
-          {t('liveData')}
-        </div>
-      </aside>
-
-      <main className="app-content">
-        <header className="topbar">
-          <div>
-            <p className="eyebrow">{t('analytics')}</p>
-            <h1>{t(TITLE_KEYS[activeTab])}</h1>
+              },
+            }))}
+          />
+          <div className="sidebar-note">
+            <span className="status-dot" />
+            {t('liveData')}
           </div>
-          <div className="topbar-actions">
+        </>
+      }
+    >
+      <SovaTopbar
+        eyebrow={t('analytics')}
+        title={t(TITLE_KEYS[activeTab])}
+        actions={
+          <>
             <div className="mini-switch" aria-label={t('language')}>
               <button className={language === 'en' ? 'active' : ''} onClick={() => setLanguage('en')} type="button">EN</button>
               <button className={language === 'uk' ? 'active' : ''} onClick={() => setLanguage('uk')} type="button">UA</button>
@@ -95,18 +82,21 @@ export function AppShell({ activeTab, children, onTabChange }: AppShellProps) {
                 <option key={item} value={item}>{item === 'auto' ? t('auto') : item}</option>
               ))}
             </select>
-            <button
+            <SovaButton
               className={`mini-sync ${syncState}`}
               disabled={syncState === 'syncing'}
               onClick={triggerSync}
               type="button"
+              variant="primary"
             >
               {syncLabel}
-            </button>
-          </div>
-        </header>
-        {children}
-      </main>
-    </div>
+            </SovaButton>
+            {syncState === 'done' ? <SovaBadge tone="good">OK</SovaBadge> : null}
+            {syncState === 'error' ? <SovaBadge tone="bad">Error</SovaBadge> : null}
+          </>
+        }
+      />
+      {children}
+    </SovaShell>
   );
 }

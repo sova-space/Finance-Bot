@@ -1,3 +1,4 @@
+import { SovaBadge, SovaKpiRow, SovaPageHeader } from '@sova/kit';
 import { useEffect, useMemo, useState } from 'react';
 
 import { apiGet } from '../../api/client';
@@ -156,30 +157,21 @@ export function OverviewScreen() {
 
   return (
     <section className="dashboard-page overview-only-page">
-      <div className="hero-grid overview-hero-grid">
-        <Card tone="dark" className="hero-card">
-          <p className="eyebrow">Net balance</p>
-          {data.accounts.length === 0 ? (
-            <EmptyState>No accounts synced yet.</EmptyState>
-          ) : (
-            <div className="hero-metrics single">
-              <div>
-                <span>{chartCurrency}</span>
-                <strong>{formatMoney(convertedBalance, chartCurrency)}</strong>
-              </div>
-            </div>
-          )}
-        </Card>
-
-        <Card className="kpi-card" title="Spent" subtitle={`${period.replace('_', ' ')} · ${chartCurrency}${data.rates.length ? ' · converted' : ''}`}>
-          <strong>{formatCompactMoney(currentMonthSpend, chartCurrency)}</strong>
-          <span>{biggestCategory ? `${biggestCategory.category} leads spend` : 'No spending yet'}</span>
-        </Card>
-
-        <Card className="kpi-card" title="Top category" subtitle="Current period">
-          <strong>{biggestCategory?.category ?? '—'}</strong>
-          <span>{biggestCategory ? formatMoney(biggestCategory.amount, biggestCategory.currency) : 'No categories yet'}</span>
-        </Card>
+      <div className="sova-surface-band finance-operator-band">
+        <SovaPageHeader
+          eyebrow="finance"
+          title="Money overview"
+          description={`Cashflow, categories, and recent transactions · ${periodSubtitle(period)} · ${chartCurrency}`}
+          meta={<SovaBadge tone="accent">{data.accounts.length} accounts</SovaBadge>}
+        />
+        <SovaKpiRow
+          items={[
+            { label: 'Net balance', value: data.accounts.length === 0 ? '—' : formatCompactMoney(convertedBalance, chartCurrency), hint: chartCurrency, tone: 'accent' },
+            { label: 'Spent', value: formatCompactMoney(currentMonthSpend, chartCurrency), hint: biggestCategory ? `${biggestCategory.category} leads` : 'No spending yet', tone: 'warn' },
+            { label: 'Top category', value: biggestCategory?.category ?? '—', hint: biggestCategory ? formatMoney(biggestCategory.amount, biggestCategory.currency) : 'No categories yet', tone: 'good' },
+            { label: 'Transactions', value: recentTransactions.length, hint: 'internal transfers hidden', tone: 'neutral' },
+          ]}
+        />
       </div>
 
       <div className="analytics-grid overview-grid">
