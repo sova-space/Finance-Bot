@@ -17,11 +17,17 @@ const labels = {
     currency: 'Currency',
     auto: 'Auto',
     navOverview: 'Overview',
+    navCashflow: 'Cash Flow',
     navSpending: 'Spending',
+    navTransactions: 'Transactions',
+    navAccounts: 'Accounts',
     navBudget: 'Budget',
     navPlan: 'Plan',
     titleOverview: 'Overview',
+    titleCashflow: 'Cash flow',
     titleSpending: 'Spending analytics',
+    titleTransactions: 'Transactions',
+    titleAccounts: 'Accounts',
     titleBudget: 'Budget control',
     titlePlan: 'Plan ahead',
   },
@@ -35,17 +41,23 @@ const labels = {
     currency: 'Валюта',
     auto: 'Авто',
     navOverview: 'Огляд',
+    navCashflow: 'Кешфлоу',
     navSpending: 'Витрати',
+    navTransactions: 'Транзакції',
+    navAccounts: 'Рахунки',
     navBudget: 'Бюджет',
     navPlan: 'План',
     titleOverview: 'Огляд',
+    titleCashflow: 'Кешфлоу',
     titleSpending: 'Аналітика витрат',
+    titleTransactions: 'Транзакції',
+    titleAccounts: 'Рахунки',
     titleBudget: 'Контроль бюджету',
     titlePlan: 'Планування',
   },
 } as const;
 
-type LabelKey = keyof typeof labels.en;
+export type LabelKey = keyof typeof labels.en;
 
 interface PreferencesContextValue {
   language: Language;

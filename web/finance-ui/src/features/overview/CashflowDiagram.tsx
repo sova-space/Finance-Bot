@@ -1,3 +1,7 @@
+import { useMemo } from 'react';
+import { Sankey, Tooltip } from 'recharts';
+import type { SankeyLinkProps, SankeyNodeProps } from 'recharts';
+
 import type { SpendingRow } from '../../api/types';
 import { CHART_COLORS } from '../../lib/chartData';
 import { formatCompactMoney, formatMoney } from '../../lib/formatMoney';
@@ -9,95 +13,114 @@ interface CashflowDiagramProps {
   expenses: number;
 }
 
-const VIEWBOX_WIDTH = 920;
-const VIEWBOX_HEIGHT = 320;
-const CENTER_X = 430;
-const CENTER_Y = 145;
-const NODE_WIDTH = 126;
-const NODE_HEIGHT = 52;
-const MIN_STROKE = 8;
-const MAX_STROKE = 34;
-
-function flowWidth(value: number, max: number) {
-  if (max <= 0) return MIN_STROKE;
-  return MIN_STROKE + (Math.max(value, 0) / max) * (MAX_STROKE - MIN_STROKE);
+interface CashflowNode {
+  name: string;
+  value: number;
+  formattedValue: string;
+  color: string;
+  kind: 'source' | 'center' | 'category' | 'surplus';
 }
 
-function pathBetween(startX: number, startY: number, endX: number, endY: number) {
-  const mid = (startX + endX) / 2;
-  return `M ${startX} ${startY} C ${mid} ${startY}, ${mid} ${endY}, ${endX} ${endY}`;
-}
+const NODE_WIDTH = 18;
+const CHART_HEIGHT = 320;
 
-export function CashflowDiagram({ categories, currency, income, expenses }: CashflowDiagramProps) {
-  const visibleCategories = categories.slice(0, 6);
+function buildSankeyData(categories: SpendingRow[], currency: string, income: number, expenses: number) {
+  const visibleCategories = categories.slice(0, 7);
   const shownExpenses = visibleCategories.reduce((sum, row) => sum + row.amount, 0);
   const otherAmount = Math.max(0, expenses - shownExpenses);
   const categoryNodes = otherAmount > 1 ? [...visibleCategories, { category: 'Other', amount: otherAmount, currency }] : visibleCategories;
   const surplus = Math.max(0, income - expenses);
-  const outgoing = surplus > 1 ? [...categoryNodes, { category: 'Surplus', amount: surplus, currency }] : categoryNodes;
-  const maxFlow = Math.max(income, expenses, ...outgoing.map((row) => row.amount), 1);
-  const sourceValue = income > 0 ? income : expenses;
+  const sourceValue = Math.max(income, expenses);
+
+  const nodes: CashflowNode[] = [
+    { name: 'Income', value: sourceValue, formattedValue: formatCompactMoney(sourceValue, currency), color: '#16a6b6', kind: 'source' },
+    { name: 'Cashflow', value: expenses, formattedValue: formatCompactMoney(expenses, currency), color: '#2f8f46', kind: 'center' },
+    ...categoryNodes.map((row, index) => ({
+      name: row.category,
+      value: row.amount,
+      formattedValue: formatCompactMoney(row.amount, currency),
+      color: CHART_COLORS[index % CHART_COLORS.length],
+      kind: 'category' as const,
+    })),
+  ];
+
+  if (surplus > 1) {
+    nodes.push({ name: 'Surplus', value: surplus, formattedValue: formatCompactMoney(surplus, currency), color: '#9fe870', kind: 'surplus' });
+  }
+
+  return {
+    nodes,
+    links: [
+      { source: 0, target: 1, value: sourceValue },
+      ...categoryNodes.map((row, index) => ({ source: 1, target: index + 2, value: row.amount })),
+      ...(surplus > 1 ? [{ source: 1, target: nodes.length - 1, value: surplus }] : []),
+    ],
+  };
+}
+
+function CashflowNodeShape({ height, payload, width, x, y }: SankeyNodeProps) {
+  const node = payload as unknown as CashflowNode;
+  const isCenter = node.kind === 'center';
+  const labelX = x + width + 8;
+  const isRightSide = x > 520;
+  const textAnchor = isRightSide ? 'end' : 'start';
+  const resolvedLabelX = isRightSide ? x - 8 : labelX;
+
+  return (
+    <g className={`recharts-cashflow-node ${node.kind}`}>
+      <rect
+        fill={node.color}
+        fillOpacity={isCenter ? 0.95 : 0.82}
+        height={height}
+        rx={9}
+        width={width}
+        x={x}
+        y={y}
+      />
+      <text className="sankey-node-title" textAnchor={textAnchor} x={resolvedLabelX} y={y + Math.max(14, height / 2 - 4)}>
+        {node.name}
+      </text>
+      <text className="sankey-node-value" textAnchor={textAnchor} x={resolvedLabelX} y={y + Math.max(30, height / 2 + 13)}>
+        {node.formattedValue}
+      </text>
+    </g>
+  );
+}
+
+function CashflowLinkShape(props: SankeyLinkProps) {
+  const { linkWidth, payload, sourceControlX, sourceX, sourceY, targetControlX, targetX, targetY } = props;
+  const target = payload.target as unknown as CashflowNode;
+  const d = `M${sourceX},${sourceY} C${sourceControlX},${sourceY} ${targetControlX},${targetY} ${targetX},${targetY}`;
+  return <path className="recharts-cashflow-link" d={d} stroke={target.color} strokeOpacity={target.kind === 'surplus' ? 0.48 : 0.26} strokeWidth={Math.max(3, linkWidth)} />;
+}
+
+export function CashflowDiagram({ categories, currency, income, expenses }: CashflowDiagramProps) {
+  const data = useMemo(() => buildSankeyData(categories, currency, income, expenses), [categories, currency, expenses, income]);
 
   if (expenses <= 0 && income <= 0) {
     return <div className="cashflow-empty">No cashflow data yet.</div>;
   }
 
   return (
-    <div className="cashflow-diagram" aria-label="Cashflow diagram">
-      <svg viewBox={`0 0 ${VIEWBOX_WIDTH} ${VIEWBOX_HEIGHT}`} role="img">
-        <defs>
-          <linearGradient id="cashflowIncome" x1="0" x2="1" y1="0" y2="0">
-            <stop offset="0%" stopColor="#9fe870" stopOpacity="0.18" />
-            <stop offset="100%" stopColor="#9fe870" stopOpacity="0.62" />
-          </linearGradient>
-          <linearGradient id="cashflowSpend" x1="0" x2="1" y1="0" y2="0">
-            <stop offset="0%" stopColor="#10120f" stopOpacity="0.16" />
-            <stop offset="100%" stopColor="#10120f" stopOpacity="0.34" />
-          </linearGradient>
-        </defs>
-
-        <path
-          className="cashflow-link income"
-          d={pathBetween(150, CENTER_Y, CENTER_X - NODE_WIDTH / 2, CENTER_Y)}
-          stroke="url(#cashflowIncome)"
-          strokeWidth={flowWidth(sourceValue, maxFlow)}
+    <div className="cashflow-diagram recharts-sankey" aria-label="Cashflow Sankey chart">
+      <Sankey
+        data={data}
+        height={CHART_HEIGHT}
+        iterations={48}
+        link={CashflowLinkShape}
+        margin={{ top: 10, right: 138, bottom: 10, left: 88 }}
+        node={CashflowNodeShape}
+        nodePadding={18}
+        nodeWidth={NODE_WIDTH}
+        sort={false}
+        verticalAlign="justify"
+        width="100%"
+      >
+        <Tooltip
+          contentStyle={{ border: '1px solid rgba(14,15,12,0.1)', borderRadius: 18, boxShadow: '0 16px 42px rgba(14,15,12,0.12)' }}
+          formatter={(value) => formatMoney(Number(value), currency)}
         />
-
-        {outgoing.map((row, index) => {
-          const gap = VIEWBOX_HEIGHT / (outgoing.length + 1);
-          const y = gap * (index + 1);
-          const isSurplus = row.category === 'Surplus';
-          return (
-            <g key={row.category}>
-              <path
-                className="cashflow-link"
-                d={pathBetween(CENTER_X + NODE_WIDTH / 2, CENTER_Y, 700, y)}
-                stroke={isSurplus ? '#9fe870' : 'url(#cashflowSpend)'}
-                strokeOpacity={isSurplus ? 0.55 : 1}
-                strokeWidth={flowWidth(row.amount, maxFlow)}
-              />
-              <g className="cashflow-node target" transform={`translate(700 ${y - NODE_HEIGHT / 2})`}>
-                <rect width="170" height={NODE_HEIGHT} rx="18" />
-                <circle cx="18" cy="18" r="5" fill={isSurplus ? '#9fe870' : CHART_COLORS[index % CHART_COLORS.length]} />
-                <text x="32" y="21" className="node-title">{row.category}</text>
-                <text x="32" y="39" className="node-value">{formatCompactMoney(row.amount, currency)}</text>
-              </g>
-            </g>
-          );
-        })}
-
-        <g className="cashflow-node source" transform={`translate(24 ${CENTER_Y - NODE_HEIGHT / 2})`}>
-          <rect width="126" height={NODE_HEIGHT} rx="18" />
-          <text x="16" y="22" className="node-title">Income</text>
-          <text x="16" y="40" className="node-value">{formatCompactMoney(sourceValue, currency)}</text>
-        </g>
-
-        <g className="cashflow-node center" transform={`translate(${CENTER_X - NODE_WIDTH / 2} ${CENTER_Y - 34})`}>
-          <rect width={NODE_WIDTH} height="68" rx="22" />
-          <text x="18" y="27" className="node-title">Cashflow</text>
-          <text x="18" y="49" className="node-value">{formatMoney(expenses, currency)}</text>
-        </g>
-      </svg>
+      </Sankey>
     </div>
   );
 }

@@ -2,7 +2,7 @@ import { useState, type ReactNode } from 'react';
 
 import { apiPost } from '../api/client';
 import { NAV_ITEMS, type NavItemId } from '../config/navigation';
-import { usePreferences, type CurrencyPreference } from '../lib/preferences';
+import { usePreferences, type CurrencyPreference, type LabelKey } from '../lib/preferences';
 import { lightFeedback } from '../lib/runtime';
 
 interface AppShellProps {
@@ -11,16 +11,22 @@ interface AppShellProps {
   onTabChange: (tab: NavItemId) => void;
 }
 
-const navLabelKey: Record<NavItemId, 'navOverview' | 'navSpending' | 'navBudget' | 'navPlan'> = {
+const NAV_LABEL_KEYS: Record<NavItemId, LabelKey> = {
   overview: 'navOverview',
+  cashflow: 'navCashflow',
   spending: 'navSpending',
+  transactions: 'navTransactions',
+  accounts: 'navAccounts',
   budget: 'navBudget',
   plan: 'navPlan',
 };
 
-const titleKey: Record<NavItemId, 'titleOverview' | 'titleSpending' | 'titleBudget' | 'titlePlan'> = {
+const TITLE_KEYS: Record<NavItemId, LabelKey> = {
   overview: 'titleOverview',
+  cashflow: 'titleCashflow',
   spending: 'titleSpending',
+  transactions: 'titleTransactions',
+  accounts: 'titleAccounts',
   budget: 'titleBudget',
   plan: 'titlePlan',
 };
@@ -69,7 +75,7 @@ export function AppShell({ activeTab, children, onTabChange }: AppShellProps) {
               type="button"
             >
               <span className="nav-glyph" aria-hidden="true">{item.glyph}</span>
-              <span>{t(navLabelKey[item.id])}</span>
+              <span>{t(NAV_LABEL_KEYS[item.id])}</span>
             </button>
           ))}
         </nav>
@@ -84,7 +90,7 @@ export function AppShell({ activeTab, children, onTabChange }: AppShellProps) {
         <header className="topbar">
           <div>
             <p className="eyebrow">{t('analytics')}</p>
-            <h1>{t(titleKey[activeTab])}</h1>
+            <h1>{t(TITLE_KEYS[activeTab])}</h1>
           </div>
           <div className="topbar-actions">
             <div className="mini-switch" aria-label={t('language')}>
