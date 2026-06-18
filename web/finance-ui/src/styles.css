@@ -243,6 +243,16 @@ h2 {
 .account-icon.cash { background: #16a34a; }
 .account-icon.asset { background: #2563eb; }
 .account-icon.debt { background: #d89000; }
+.accounts-diagram { display: grid; gap: 12px; }
+.accounts-diagram-row { display: grid; gap: 7px; }
+.accounts-diagram-row div:first-child { display: flex; justify-content: space-between; gap: 12px; color: var(--muted); font-size: 12px; font-weight: 850; }
+.accounts-diagram-row strong { color: var(--text); font-variant-numeric: tabular-nums; }
+.accounts-diagram-track { height: 10px; overflow: hidden; border-radius: 999px; background: rgba(14,15,12,0.08); }
+.accounts-diagram-track i { display: block; height: 100%; border-radius: inherit; }
+.accounts-diagram-track .bank { background: #2563eb; }
+.accounts-diagram-track .cash { background: #16a34a; }
+.accounts-diagram-track .asset { background: #7c3aed; }
+.accounts-diagram-track .debt { background: #d89000; }
 .manual-balance-form { display: grid; grid-template-columns: 130px minmax(170px, 1fr) 130px 110px 120px minmax(150px, 1fr) auto auto; gap: 10px; align-items: end; }
 .manual-balance-form label { min-width: 0; display: grid; gap: 5px; }
 .manual-balance-form label span { color: var(--muted); font-size: 11px; font-weight: 850; text-transform: uppercase; letter-spacing: 0.08em; }
@@ -334,6 +344,12 @@ h2 {
 .jar-track span { display: block; height: 100%; border-radius: inherit; }
 .jar-limit { grid-column: 1 / -1; justify-self: end; }
 .cashflow-clear { width: 100%; margin-top: 10px; }
+.spending-group-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.spending-group-card { min-height: 96px; border: 1px solid rgba(14,15,12,0.08); border-radius: 20px; padding: 12px; display: grid; gap: 6px; justify-items: start; background: rgba(255,255,255,0.68); color: var(--text); text-align: left; cursor: pointer; }
+.spending-group-card.active { border-color: rgba(14,15,12,0.28); background: rgba(159,232,112,0.2); }
+.spending-group-card strong { font-size: 13px; font-weight: 900; }
+.spending-group-card em { font-style: normal; font-size: 15px; font-weight: 900; font-variant-numeric: tabular-nums; }
+.spending-group-card small { color: var(--muted); font-size: 11px; font-weight: 780; }
 .cashflow-category-list { display: grid; gap: 2px; }
 .cashflow-category-row {
   min-height: 46px;
@@ -370,7 +386,7 @@ h2 {
   .brand-block div:not(.brand-mark) { display: none; }
   .topbar { align-items: stretch; flex-direction: column; margin-bottom: 22px; }
   .topbar-actions { width: fit-content; }
-  .hero-grid, .analytics-grid, .monarch-grid, .metric-strip { grid-template-columns: 1fr; }
+  .hero-grid, .analytics-grid, .monarch-grid, .metric-strip, .spending-group-grid { grid-template-columns: 1fr; }
   .wide { grid-column: auto; }
   .card { border-radius: 22px; padding: 14px; }
   .pocket-grid, .category-legend-grid { grid-template-columns: 1fr; }

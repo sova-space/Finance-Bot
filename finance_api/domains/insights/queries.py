@@ -41,6 +41,8 @@ def _period_dates(period: str) -> tuple[date, date]:
         return today - timedelta(days=30), today
     if period == LAST_90D:
         return today - timedelta(days=90), today
+    if period == "this_year":
+        return date(today.year, 1, 1), today
     return today.replace(day=1), today
 
 

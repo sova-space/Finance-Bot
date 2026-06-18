@@ -12,7 +12,6 @@ import type { AnalyticsPeriod } from '../../config/periods';
 import { CHART_COLORS, preferredCurrency } from '../../lib/chartData';
 import { formatCompactMoney, formatMoney } from '../../lib/formatMoney';
 import { usePreferences } from '../../lib/preferences';
-import { CashflowDiagram } from '../overview/CashflowDiagram';
 import { buildCashflowSummary, jarForCategory, spendingRowsFromTransactions, type CashflowJarId } from './model';
 
 interface CashflowData {
@@ -29,7 +28,9 @@ function ratioTone(ratio: number | null) {
 }
 
 function periodLabel(period: AnalyticsPeriod) {
-  return period.replace('_', ' ');
+  if (period === 'this_year') return 'year';
+  if (period === 'last_90d') return 'quarter';
+  return 'month';
 }
 
 export function CashflowScreen() {
@@ -67,10 +68,6 @@ export function CashflowScreen() {
     () => buildCashflowSummary(data?.transactions ?? [], data?.budgets ?? [], data?.rates ?? [], chartCurrency),
     [chartCurrency, data?.budgets, data?.rates, data?.transactions],
   );
-  const jarChartRows = useMemo(
-    () => summary.jars.filter((jar) => jar.spent > 0).map((jar) => ({ category: jar.label, currency: jar.currency, amount: jar.spent })),
-    [summary.jars],
-  );
   const visibleCategories = selectedJar === 'all' ? summary.categories : summary.categories.filter((row) => row.jarId === selectedJar);
   const visibleTransactions = summary.recentTransactions.filter((tx) => selectedJar === 'all' || jarForCategory(tx.category).id === selectedJar);
   const budgetStatus = summary.budgetRemaining === null
@@ -88,14 +85,14 @@ export function CashflowScreen() {
         <SovaPageHeader
           eyebrow="finance"
           title="Spending"
-          description={`Where money goes · budget pressure · ${periodLabel(period)} · ${chartCurrency}`}
-          meta={<SovaBadge tone={summary.budgetRemaining !== null && summary.budgetRemaining < 0 ? 'bad' : 'accent'}>{budgetStatus}</SovaBadge>}
+          description={`Income, expenses, groups · ${periodLabel(period)} · ${chartCurrency}`}
+          meta={<SovaBadge tone={summary.leftAfterSpend >= 0 ? 'good' : 'bad'}>{summary.leftAfterSpend >= 0 ? 'within income' : 'over income'}</SovaBadge>}
         />
         <SovaKpiRow
           items={[
-            { label: 'Income', value: formatCompactMoney(summary.income, chartCurrency), hint: 'clean positive tx', tone: 'good' },
-            { label: 'Spent', value: formatCompactMoney(summary.spent, chartCurrency), hint: `${summary.categories.length} categories`, tone: 'warn' },
-            { label: 'Left', value: formatCompactMoney(summary.leftAfterSpend, chartCurrency), hint: 'income minus spend', tone: summary.leftAfterSpend >= 0 ? 'accent' : 'warn' },
+            { label: 'Income', value: formatCompactMoney(summary.income, chartCurrency), hint: `${summary.incomeSources.length} sources`, tone: 'good' },
+            { label: 'Expenses', value: formatCompactMoney(summary.spent, chartCurrency), hint: `${summary.categories.length} categories`, tone: 'warn' },
+            { label: 'Left', value: formatCompactMoney(summary.leftAfterSpend, chartCurrency), hint: 'income - expenses', tone: summary.leftAfterSpend >= 0 ? 'accent' : 'warn' },
             { label: 'Needs sorting', value: summary.needsSorting ? formatCompactMoney(summary.needsSorting, chartCurrency) : '0', hint: 'uncategorized', tone: summary.needsSorting ? 'neutral' : 'good' },
           ]}
         />
@@ -103,50 +100,53 @@ export function CashflowScreen() {
 
       <div className="section-head monarch-head">
         <div>
-          <p className="eyebrow">Spending</p>
-          <h2>Money groups</h2>
+          <p className="eyebrow">Range</p>
+          <h2>Income and expenses</h2>
         </div>
         <PeriodSelector value={period} onChange={setPeriod} />
       </div>
 
       <div className="cashflow-report-grid">
-        <Card className="wide cashflow-card" title="Where money went" subtitle="Fixed / Flexible / Non-monthly">
-          <CashflowDiagram categories={jarChartRows} currency={chartCurrency} expenses={summary.spent} />
+        <Card className="wide" title="Income sources" subtitle="Where money came from">
+          {summary.incomeSources.length === 0 ? (
+            <EmptyState>No income for this range.</EmptyState>
+          ) : (
+            <div className="cashflow-category-list">
+              {summary.incomeSources.slice(0, 8).map((row, index) => (
+                <div className="cashflow-category-row" key={row.name}>
+                  <span className="cashflow-color income" style={{ background: CHART_COLORS[index % CHART_COLORS.length] }} />
+                  <div>
+                    <strong>{row.name}</strong>
+                    <small>{row.count} transactions</small>
+                  </div>
+                  <em>{formatMoney(row.amount, row.currency)}</em>
+                  <small>{Math.round(row.share)}%</small>
+                </div>
+              ))}
+            </div>
+          )}
         </Card>
 
-        <Card title="Budget pressure" subtitle="from category limits">
-          <div className="jar-list">
+        <Card className="wide" title="Spending groups" subtitle="Normal groups, not budget rules">
+          <div className="spending-group-grid">
             {summary.jars.map((jar, index) => {
-              const ratio = jar.ratio === null ? 0 : Math.min(jar.ratio, 1);
+              const active = selectedJar === jar.id;
               return (
-                <button
-                  className={`jar-row ${selectedJar === jar.id ? 'active' : ''}`}
-                  key={jar.id}
-                  onClick={() => setSelectedJar(selectedJar === jar.id ? 'all' : jar.id)}
-                  type="button"
-                >
+                <button className={`spending-group-card ${active ? 'active' : ''}`} key={jar.id} onClick={() => setSelectedJar(active ? 'all' : jar.id)} type="button">
                   <span className="jar-dot" style={{ background: CHART_COLORS[index % CHART_COLORS.length] }} />
-                  <div>
-                    <strong>{jar.label}</strong>
-                    <small>{jar.hint}</small>
-                  </div>
+                  <strong>{jar.label}</strong>
                   <em>{formatCompactMoney(jar.spent, chartCurrency)}</em>
-                  <div className="jar-track">
-                    <span className={`bar-fill ${ratioTone(jar.ratio)}`} style={{ width: `${Math.round(ratio * 100)}%` }} />
-                  </div>
-                  <small className="jar-limit">
-                    {jar.limit > 0 ? `${formatCompactMoney(jar.spent, chartCurrency)} / ${formatCompactMoney(jar.limit, chartCurrency)}` : 'no limit'}
-                  </small>
+                  <small>{jar.hint} · {Math.round(jar.share)}%</small>
                 </button>
               );
             })}
           </div>
-          <button className="soft-button cashflow-clear" onClick={() => setSelectedJar('all')} type="button">All jars</button>
+          <button className="soft-button cashflow-clear" onClick={() => setSelectedJar('all')} type="button">All groups</button>
         </Card>
 
-        <Card className="wide" title="Categories" subtitle={selectedJar === 'all' ? 'All jars' : summary.jars.find((jar) => jar.id === selectedJar)?.label}>
+        <Card className="wide" title="Where money went" subtitle={selectedJar === 'all' ? 'All groups' : summary.jars.find((jar) => jar.id === selectedJar)?.label}>
           {visibleCategories.length === 0 ? (
-            <EmptyState>No spending for this view.</EmptyState>
+            <EmptyState>No spending for this range.</EmptyState>
           ) : (
             <div className="cashflow-category-list">
               {visibleCategories.map((row, index) => (
@@ -175,12 +175,37 @@ export function CashflowScreen() {
                     <strong>{tx.description}</strong>
                     <span>{tx.category ?? 'Uncategorized'} · {tx.date}</span>
                   </div>
-                  <span className="category-pill">{jarForCategory(tx.category).label}</span>
+                  <span className="category-pill">{tx.amount > 0 ? 'Income' : jarForCategory(tx.category).label}</span>
                   <em className={tx.amount > 0 ? 'positive' : ''}>{formatMoney(tx.amount, tx.currency)}</em>
                 </div>
               ))}
             </div>
           )}
+        </Card>
+
+        <Card className="wide" title="Budget pressure" subtitle="monthly limits by group">
+          <div className="jar-list">
+            {summary.jars.map((jar, index) => {
+              const ratio = jar.ratio === null ? 0 : Math.min(jar.ratio, 1);
+              return (
+                <div className="jar-row static" key={jar.id}>
+                  <span className="jar-dot" style={{ background: CHART_COLORS[index % CHART_COLORS.length] }} />
+                  <div>
+                    <strong>{jar.label}</strong>
+                    <small>{jar.limit > 0 ? `${formatCompactMoney(jar.remaining ?? 0, chartCurrency)} left` : 'no limit'}</small>
+                  </div>
+                  <em>{formatCompactMoney(jar.spent, chartCurrency)}</em>
+                  <div className="jar-track">
+                    <span className={`bar-fill ${ratioTone(jar.ratio)}`} style={{ width: `${Math.round(ratio * 100)}%` }} />
+                  </div>
+                  <small className="jar-limit">
+                    {jar.limit > 0 ? `${formatCompactMoney(jar.spent, chartCurrency)} / ${formatCompactMoney(jar.limit, chartCurrency)}` : 'set budgets to use pressure'}
+                  </small>
+                </div>
+              );
+            })}
+          </div>
+          <div className="accounts-net-reference"><span>Total</span><strong>{budgetStatus}</strong><em>budgeting section</em></div>
         </Card>
       </div>
     </section>

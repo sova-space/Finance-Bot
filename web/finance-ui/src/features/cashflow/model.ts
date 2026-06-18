@@ -29,12 +29,21 @@ export interface CashflowJarRow {
   categoryCount: number;
 }
 
+export interface IncomeSourceRow {
+  name: string;
+  currency: string;
+  amount: number;
+  count: number;
+  share: number;
+}
+
 export interface CashflowSummaryModel {
   currency: string;
   income: number;
   spent: number;
   leftAfterSpend: number;
   budgetRemaining: number | null;
+  incomeSources: IncomeSourceRow[];
   jars: CashflowJarRow[];
   categories: CashflowCategoryRow[];
   recentTransactions: TransactionItem[];
@@ -124,6 +133,22 @@ function sumConverted(transactions: TransactionItem[], currency: string, rates: 
     }, 0);
 }
 
+function incomeSourcesFromTransactions(transactions: TransactionItem[], currency: string, rates: FxRate[], totalIncome: number): IncomeSourceRow[] {
+  const totals = new Map<string, IncomeSourceRow>();
+  transactions.filter(isIncomeTransaction).forEach((tx) => {
+    const converted = safeConvertAmount(tx.amount, tx.currency, currency, rates);
+    if (converted === null) return;
+    const name = tx.description || tx.category || 'Income';
+    const existing = totals.get(name) ?? { name, currency, amount: 0, count: 0, share: 0 };
+    existing.amount += Math.abs(converted);
+    existing.count += 1;
+    totals.set(name, existing);
+  });
+  return [...totals.values()]
+    .map((row) => ({ ...row, share: totalIncome > 0 ? (row.amount / totalIncome) * 100 : 0 }))
+    .sort((a, b) => b.amount - a.amount);
+}
+
 export function buildCashflowSummary(
   transactions: TransactionItem[],
   budgets: BudgetRow[],
@@ -133,6 +158,7 @@ export function buildCashflowSummary(
   const spendingRows = rowsForCurrency(spendingRowsFromTransactions(transactions), currency, rates);
   const spent = spendingRows.reduce((sum, row) => sum + row.amount, 0);
   const income = sumConverted(transactions, currency, rates, isIncomeTransaction);
+  const incomeSources = incomeSourcesFromTransactions(transactions, currency, rates, income);
 
   const categories: CashflowCategoryRow[] = spendingRows.map((row) => {
     const jar = jarForCategory(row.category);
@@ -180,6 +206,7 @@ export function buildCashflowSummary(
     spent,
     leftAfterSpend: income - spent,
     budgetRemaining: budgetLimit > 0 ? budgetLimit - spent : null,
+    incomeSources,
     jars,
     categories,
     recentTransactions: transactions.filter((tx) => isSpendTransaction(tx) || isIncomeTransaction(tx)).slice(0, 12),

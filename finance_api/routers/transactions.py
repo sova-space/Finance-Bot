@@ -11,7 +11,14 @@ from finance_api.schemas import MonthlyTrend, SpendingRow, TransactionItem
 
 router = APIRouter()
 
-Period = Literal["this_month", "last_month", "last_7d", "last_30d", "last_90d"]
+Period = Literal[
+    "this_month",
+    "last_month",
+    "last_7d",
+    "last_30d",
+    "last_90d",
+    "this_year",
+]
 
 
 @router.get(

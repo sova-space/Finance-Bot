@@ -2,7 +2,7 @@ import { SovaBadge, SovaKpiRow, SovaPageHeader } from '@sova/kit';
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 
 import { apiGet, apiPost } from '../../api/client';
-import type { Account, AccountsSummary, FxRate, IncomeTotal, ManualBalance, SpendingRow } from '../../api/types';
+import type { Account, AccountsSummary, FxRate, ManualBalance, SpendingRow } from '../../api/types';
 import { Card } from '../../components/Card';
 import { EmptyState } from '../../components/EmptyState';
 import { ErrorState } from '../../components/ErrorState';
@@ -150,20 +150,11 @@ function rowsFromData(summary: AccountsSummary): SpendingRow[] {
     currency: row.currency,
     amount: manualValue(row),
   }));
-  const incomeRows = [...summary.earnings.month, ...summary.earnings.year].map((row, index) => ({
-    category: `income:${index}`,
-    currency: row.currency,
-    amount: row.amount,
-  }));
-  return [...bankRows, ...manualRows, ...incomeRows].filter((row) => row.amount > 0);
+  return [...bankRows, ...manualRows].filter((row) => row.amount > 0);
 }
 
 function sumConverted<T>(rows: T[], getAmount: (row: T) => number, getCurrency: (row: T) => string, currency: string, rates: FxRate[]) {
   return rows.reduce((sum, row) => sum + convertAmount(getAmount(row), getCurrency(row), currency, rates), 0);
-}
-
-function incomeTotal(rows: IncomeTotal[], currency: string, rates: FxRate[]) {
-  return sumConverted(rows, (row) => row.amount, (row) => row.currency, currency, rates);
 }
 
 function AccountList({ accounts, currency, rates, text }: { accounts: Account[]; currency: string; rates: FxRate[]; text: AccountsLabels }) {
@@ -205,6 +196,31 @@ function ManualList({ empty, rows, currency, rates }: { empty: string; rows: Man
           </div>
         );
       })}
+    </div>
+  );
+}
+
+function AccountsDiagram({ totals, currency, text }: { totals: { bank: number; cash: number; ownership: number; debt: number }; currency: string; text: AccountsLabels }) {
+  const rows = [
+    { label: text.bank, value: totals.bank, tone: 'bank' },
+    { label: text.cash, value: totals.cash, tone: 'cash' },
+    { label: text.ownership, value: totals.ownership, tone: 'asset' },
+    { label: text.debt, value: totals.debt, tone: 'debt' },
+  ].filter((row) => row.value > 0);
+  const max = Math.max(...rows.map((row) => row.value), 1);
+  return (
+    <div className="accounts-diagram">
+      {rows.length === 0 ? <EmptyState>{text.noBank}</EmptyState> : rows.map((row) => (
+        <div className="accounts-diagram-row" key={row.label}>
+          <div>
+            <span>{row.label}</span>
+            <strong>{formatMoney(row.value, currency)}</strong>
+          </div>
+          <div className="accounts-diagram-track">
+            <i className={row.tone} style={{ width: `${Math.max(6, (row.value / max) * 100)}%` }} />
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
@@ -347,7 +363,7 @@ export function AccountsScreen() {
     const summary = data?.summary;
     const rates = data?.rates ?? [];
     if (!summary) {
-      return { bank: 0, cash: 0, ownership: 0, debt: 0, earnedMonth: 0, earnedYear: 0, net: 0 };
+      return { bank: 0, cash: 0, ownership: 0, debt: 0, net: 0 };
     }
     const positiveBank = summary.bank_accounts.filter((account) => account.balance > 0);
     const negativeBank = summary.bank_accounts.filter((account) => account.balance < 0);
@@ -361,9 +377,7 @@ export function AccountsScreen() {
     const cardDebt = sumConverted(negativeBank, (row) => Math.abs(row.balance), (row) => row.currency, displayCurrency, rates);
     const manualDebt = sumConverted(debtRows, manualValue, (row) => row.currency, displayCurrency, rates);
     const debt = cardDebt + manualDebt;
-    const earnedMonth = incomeTotal(summary.earnings.month, displayCurrency, rates);
-    const earnedYear = incomeTotal(summary.earnings.year, displayCurrency, rates);
-    return { bank, cash, ownership, debt, earnedMonth, earnedYear, net: bank + cash + ownership - debt };
+    return { bank, cash, ownership, debt, net: bank + cash + ownership - debt };
   }, [data, displayCurrency]);
 
   if (error) return <ErrorState message={error} />;
@@ -419,6 +433,9 @@ export function AccountsScreen() {
             <ManualBalanceForm currency={displayCurrency} onCreated={reloadSummary} text={text} />
           </Card>
         ) : null}
+        <Card className="wide" title="Money structure" subtitle={`${text.bank} / ${text.cash} / ${text.ownership} / ${text.debt}`}>
+          <AccountsDiagram totals={totals} currency={displayCurrency} text={text} />
+        </Card>
         <Card className="wide" title={text.bankAccounts} subtitle={text.syncedBalances}>
           <AccountList accounts={data.summary.bank_accounts} currency={displayCurrency} rates={data.rates} text={text} />
         </Card>

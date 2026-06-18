@@ -59,14 +59,15 @@ function spendingRowsFromTransactions(transactions: TransactionItem[]): Spending
 
 function periodSubtitle(period: AnalyticsPeriod) {
   const now = new Date();
-  const date = period === 'last_month' ? new Date(now.getFullYear(), now.getMonth() - 1, 1) : now;
-  return date.toLocaleDateString('en', { month: 'long', year: 'numeric' });
+  if (period === 'this_year') return String(now.getFullYear());
+  if (period === 'last_90d') return 'last 90 days';
+  return now.toLocaleDateString('en', { month: 'long', year: 'numeric' });
 }
 
 function CashflowRangeMenu({ value, onChange }: { value: AnalyticsPeriod; onChange: (period: AnalyticsPeriod) => void }) {
   const items: Array<{ id: AnalyticsPeriod; label: string }> = [
-    { id: 'this_month', label: 'This month' },
-    { id: 'last_month', label: 'Last month' },
+    { id: 'this_month', label: 'Month' },
+    { id: 'last_90d', label: 'Quarter' },
   ];
 
   return (
