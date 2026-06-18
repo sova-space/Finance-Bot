@@ -431,12 +431,6 @@ export function AccountsScreen() {
         <Card title={text.debtTitle} subtitle={text.debtSubtitle} tone={debtRows.length ? 'warning' : 'default'}>
           <ManualList empty={text.noDebt} rows={debtRows} currency={displayCurrency} rates={data.rates} />
         </Card>
-        <Card className="wide" title={text.earningsTitle} subtitle={text.earningsSubtitle}>
-          <div className="summary-list">
-            <div className="summary-row"><span>{text.month}</span><strong>{formatMoney(totals.earnedMonth, displayCurrency)}</strong></div>
-            <div className="summary-row"><span>{text.year}</span><strong>{formatMoney(totals.earnedYear, displayCurrency)}</strong></div>
-          </div>
-        </Card>
       </div>
     </section>
   );
