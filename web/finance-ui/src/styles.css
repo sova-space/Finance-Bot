@@ -235,9 +235,10 @@ h2 {
 .account-icon { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; color: #fff; font-size: 12px; font-weight: 900; }
 .summary-stack { height: 12px; display: flex; overflow: hidden; border-radius: 999px; background: rgba(14,15,12,0.07); margin-bottom: 14px; }
 .summary-stack span { height: 100%; }
-.accounts-net-reference { margin-top: 12px; display: flex; align-items: baseline; gap: 8px; color: var(--muted); font-size: 12px; font-weight: 800; }
+.accounts-net-reference { margin-top: 12px; display: flex; align-items: baseline; gap: 8px; color: var(--muted); font-size: 12px; font-weight: 800; flex-wrap: wrap; }
 .accounts-net-reference strong { color: var(--text); font-size: 13px; font-weight: 900; font-variant-numeric: tabular-nums; }
 .accounts-net-reference em { font-style: normal; opacity: 0.72; }
+.accounts-net-reference button { height: 28px; margin-left: 4px; border: 1px solid var(--border); border-radius: 999px; padding: 0 10px; background: rgba(255,255,255,0.72); color: var(--text); font-size: 11px; font-weight: 900; cursor: pointer; }
 .accounts-grid .card { min-height: 210px; }
 .account-icon.cash { background: #16a34a; }
 .account-icon.asset { background: #2563eb; }

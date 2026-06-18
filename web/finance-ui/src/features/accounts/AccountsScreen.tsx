@@ -14,7 +14,7 @@ import { usePreferences } from '../../lib/preferences';
 const labels = {
   en: {
     eyebrow: 'finance',
-    title: 'Accounts',
+    title: 'What do I have',
     description: 'Bank, cash, ownership, debt',
     bank: 'Bank',
     cash: 'Cash',
@@ -42,8 +42,9 @@ const labels = {
     fop: 'FOP',
     spent: 'spent',
     netHint: 'small only',
-    addTitle: 'Add manual row',
-    addSubtitle: 'Cash, ownership, debt',
+    addTitle: 'Edit manual',
+    addSubtitle: 'Rare setup action',
+    closeManual: 'Close',
     type: 'Type',
     currency: 'Currency',
     name: 'Name',
@@ -60,7 +61,7 @@ const labels = {
   },
   uk: {
     eyebrow: 'фінанси',
-    title: 'Рахунки',
+    title: 'Що я маю',
     description: 'Банк, готівка, власність, борги',
     bank: 'Банк',
     cash: 'Готівка',
@@ -88,8 +89,9 @@ const labels = {
     fop: 'ФОП',
     spent: 'витрачено',
     netHint: 'маленько',
-    addTitle: 'Додати вручну',
-    addSubtitle: 'Готівка, власність, борг',
+    addTitle: 'Редагувати вручну',
+    addSubtitle: 'Рідкісне налаштування',
+    closeManual: 'Закрити',
     type: 'Тип',
     currency: 'Валюта',
     name: 'Назва',
@@ -310,6 +312,7 @@ export function AccountsScreen() {
   const text = labels[language];
   const [data, setData] = useState<AccountsData | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [manualEditorOpen, setManualEditorOpen] = useState(false);
 
   async function reloadSummary() {
     const summary = await apiGet<AccountsSummary>('/accounts/summary');
@@ -398,20 +401,24 @@ export function AccountsScreen() {
             { label: text.cash, value: formatCompactMoney(totals.cash, displayCurrency), hint: `${cashRows.length}`, tone: 'good' },
             { label: text.ownership, value: formatCompactMoney(totals.ownership, displayCurrency), hint: `${ownershipRows.length}`, tone: 'neutral' },
             { label: text.debt, value: formatCompactMoney(totals.debt, displayCurrency), hint: `${debtRows.length}`, tone: 'warn' },
-            { label: text.earned, value: formatCompactMoney(totals.earnedMonth, displayCurrency), hint: text.month, tone: 'good' },
           ]}
         />
         <div className="accounts-net-reference">
           <span>{text.netSmall}</span>
           <strong>{formatMoney(totals.net, displayCurrency)}</strong>
           <em>{text.netHint}</em>
+          <button onClick={() => setManualEditorOpen((open) => !open)} type="button">
+            {manualEditorOpen ? text.closeManual : text.addTitle}
+          </button>
         </div>
       </div>
 
       <div className="analytics-grid accounts-grid">
-        <Card className="wide" title={text.addTitle} subtitle={text.addSubtitle}>
-          <ManualBalanceForm currency={displayCurrency} onCreated={reloadSummary} text={text} />
-        </Card>
+        {manualEditorOpen ? (
+          <Card className="wide" title={text.addTitle} subtitle={text.addSubtitle}>
+            <ManualBalanceForm currency={displayCurrency} onCreated={reloadSummary} text={text} />
+          </Card>
+        ) : null}
         <Card className="wide" title={text.bankAccounts} subtitle={text.syncedBalances}>
           <AccountList accounts={data.summary.bank_accounts} currency={displayCurrency} rates={data.rates} text={text} />
         </Card>
