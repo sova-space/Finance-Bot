@@ -19,6 +19,7 @@ from finance_api.domains.sync.mcc import MCC_LOOKUP
 from finance_api.domains.sync.models import SyncRun
 from finance_api.domains.transactions import categories as cat
 from finance_api.domains.transactions import modes
+from finance_api.domains.transactions.autolabel import autolabel_transaction
 from finance_api.domains.transactions.models import Transaction
 
 log = structlog.get_logger(__name__)
@@ -198,6 +199,49 @@ def _parse_cashback(
     )
 
 
+def _sync_parsed_transaction(
+    session: Session,
+    parsed: Transaction,
+    existing_by_id: dict[str, Transaction] | None = None,
+) -> tuple[Transaction, bool]:
+    """Insert/update one parsed Monobank transaction and apply autolabels.
+
+    Returns (transaction, is_new). Existing transactions are updated when Monobank
+    later returns a changed comment/notes value.
+    """
+    existing = None
+    if existing_by_id is not None:
+        existing = existing_by_id.get(parsed.monobank_id)
+    if existing is None:
+        existing = session.exec(
+            select(Transaction)
+            .where(Transaction.monobank_id == parsed.monobank_id)
+            .where(Transaction.user_id == parsed.user_id)
+        ).first()
+
+    if existing is None:
+        autolabel_transaction(session, parsed)
+        session.add(parsed)
+        return parsed, True
+
+    changed = False
+    if existing.notes != parsed.notes:
+        existing.notes = parsed.notes
+        changed = True
+    if existing.is_pending != parsed.is_pending:
+        existing.is_pending = parsed.is_pending
+        changed = True
+    if existing.cashback_amount != parsed.cashback_amount:
+        existing.cashback_amount = parsed.cashback_amount
+        changed = True
+
+    if autolabel_transaction(session, existing):
+        changed = True
+    if changed:
+        session.add(existing)
+    return existing, False
+
+
 def _build_chunks(from_ts: int, to_ts: int) -> list[tuple[int, int]]:
     """Split [from_ts, to_ts] into CHUNK_DAYS-day windows."""
     chunks: list[tuple[int, int]] = []
@@ -275,21 +319,21 @@ def _sync_account(
                 )
                 if not parsed:
                     continue
-                existing = existing_by_id.get(parsed.monobank_id)
-                if existing is None:
-                    session.add(parsed)
+                saved, is_new = _sync_parsed_transaction(
+                    session,
+                    parsed,
+                    existing_by_id,
+                )
+                if is_new:
                     imported += 1
                     new_tx_notifications.append({
-                        "description": parsed.description,
-                        "amount": parsed.amount,
-                        "currency": parsed.currency,
-                        "category": parsed.category,
+                        "description": saved.description,
+                        "amount": saved.amount,
+                        "currency": saved.currency,
+                        "category": saved.category,
                     })
-                    if parsed.amount < 0 and parsed.category is not None:
-                        new_expense_txs.append(parsed)
-                elif existing.notes != parsed.notes:
-                    existing.notes = parsed.notes
-                    session.add(existing)
+                    if saved.amount < 0 and saved.category is not None:
+                        new_expense_txs.append(saved)
 
                 cb = _parse_cashback(tx, account_id, currency, user_id=user_id)
                 if cb and cb.monobank_id not in existing_by_id:

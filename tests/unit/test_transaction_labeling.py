@@ -90,6 +90,42 @@ def test_relabel_latest_transaction_updates_already_labeled_tx(session, monkeypa
     assert updated.category == cat.COUPLE_TRANSFER
 
 
+def test_manual_relabel_remembers_receiver_for_future_autolabels(session, monkeypatch):
+    import finance_api.domains.transactions.labeling as labeling
+
+    monkeypatch.setattr(labeling, "engine", session.bind)
+    account = Account(
+        monobank_id="acc-1",
+        name="Card",
+        currency="UAH",
+        account_type="black",
+    )
+    session.add(account)
+    session.commit()
+    session.refresh(account)
+    session.add(
+        Transaction(
+            account_id=account.id,
+            monobank_id="badboy-manual",
+            amount=-500,
+            currency="UAH",
+            date=date(2026, 6, 10),
+            description="BadBoy",
+            category=None,
+        )
+    )
+    session.commit()
+
+    labeling.relabel_latest_transaction("badboy", cat.FOOD_AND_DRINK)
+
+    from finance_api.domains.rules.models import TransactionRule
+
+    rule = session.exec(select(TransactionRule)).one()
+    assert rule.rule_type == "auto_category"
+    assert rule.pattern == "BadBoy"
+    assert rule.label == cat.FOOD_AND_DRINK
+
+
 def test_edit_latest_transaction_can_adjust_amount_and_description(
     session, monkeypatch
 ):

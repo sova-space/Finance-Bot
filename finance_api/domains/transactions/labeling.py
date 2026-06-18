@@ -8,6 +8,7 @@ from sqlmodel import Session, select
 from finance_api.core.db.engine import engine
 from finance_api.domains.transactions import categories as cat
 from finance_api.domains.transactions import modes
+from finance_api.domains.transactions.autolabel import remember_receiver_category
 from finance_api.domains.transactions.models import Transaction
 
 
@@ -75,6 +76,7 @@ def label_transaction_by_id(
             tx.notes = notes.strip()
         if tx.amount < 0 and tx.mode is None:
             tx.mode = modes.SOLO
+        remember_receiver_category(session, tx.description, category)
         session.add(tx)
         session.commit()
         session.refresh(tx)
@@ -107,6 +109,7 @@ def label_latest_uncategorized(
             tx.notes = notes.strip()
         if tx.amount < 0 and tx.mode is None:
             tx.mode = modes.SOLO
+        remember_receiver_category(session, tx.description, category)
         session.add(tx)
         session.commit()
         session.refresh(tx)
@@ -124,6 +127,7 @@ def relabel_latest_transaction(description: str, category: str) -> dict[str, Any
         tx.category = category
         if tx.amount < 0 and tx.mode is None:
             tx.mode = modes.SOLO
+        remember_receiver_category(session, tx.description, category)
         session.add(tx)
         session.commit()
         session.refresh(tx)
@@ -155,6 +159,7 @@ def edit_latest_transaction(
             tx.description = cleaned
         if category is not None:
             tx.category = category
+            remember_receiver_category(session, tx.description, category)
         if date is not None:
             from datetime import date as date_type
 
