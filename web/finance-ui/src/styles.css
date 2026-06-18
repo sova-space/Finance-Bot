@@ -350,6 +350,14 @@ h2 {
 .spending-group-card strong { font-size: 13px; font-weight: 900; }
 .spending-group-card em { font-style: normal; font-size: 15px; font-weight: 900; font-variant-numeric: tabular-nums; }
 .spending-group-card small { color: var(--muted); font-size: 11px; font-weight: 780; }
+.trend-list { display: grid; gap: 9px; }
+.trend-row { display: grid; grid-template-columns: 74px minmax(0, 1fr) auto; gap: 10px; align-items: center; }
+.trend-row strong { font-size: 12px; font-weight: 900; color: var(--muted); }
+.trend-row em { font-style: normal; font-size: 12px; font-weight: 900; font-variant-numeric: tabular-nums; }
+.trend-bars { display: grid; gap: 4px; }
+.trend-bars span { display: block; height: 6px; min-width: 4px; border-radius: 999px; }
+.trend-bars .income { background: #16a34a; }
+.trend-bars .expense { background: #f97316; }
 .cashflow-category-list { display: grid; gap: 2px; }
 .cashflow-category-row {
   min-height: 46px;

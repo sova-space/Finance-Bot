@@ -1,7 +1,7 @@
 import type { BudgetRow, FxRate, SpendingRow, TransactionItem } from '../../api/types';
 import { convertAmount, rowsForCurrency } from '../../lib/chartData';
 
-export type CashflowJarId = 'fixed' | 'flexible' | 'non_monthly';
+export type CashflowJarId = 'living' | 'bills' | 'lifestyle' | 'non_monthly';
 
 export interface CashflowJarDefinition {
   id: CashflowJarId;
@@ -52,26 +52,22 @@ export interface CashflowSummaryModel {
 
 export const JARS: CashflowJarDefinition[] = [
   {
-    id: 'fixed',
-    label: 'Fixed',
-    hint: 'bills / recurring',
+    id: 'living',
+    label: 'Living',
+    hint: 'food / groceries / transport / health',
+    categories: ['Food & Drink', 'Groceries', 'Transportation', 'Healthcare', 'ATM & Cash'],
+  },
+  {
+    id: 'bills',
+    label: 'Bills',
+    hint: 'fixed / recurring costs',
     categories: ['Utilities', 'Subscriptions'],
   },
   {
-    id: 'flexible',
-    label: 'Flexible',
-    hint: 'daily choices',
-    categories: [
-      'Food & Drink',
-      'Groceries',
-      'Transportation',
-      'Healthcare',
-      'Shopping',
-      'Entertainment',
-      'Education',
-      'Pets',
-      'ATM & Cash',
-    ],
+    id: 'lifestyle',
+    label: 'Lifestyle',
+    hint: 'shopping / fun / learning',
+    categories: ['Shopping', 'Entertainment', 'Education', 'Pets'],
   },
   {
     id: 'non_monthly',
@@ -89,7 +85,7 @@ const NON_SPEND_CATEGORIES = new Set(['Income', 'Cashback', 'Couple Transfer', '
 const NON_INCOME_CATEGORIES = new Set(['Cashback', 'Couple Transfer', 'Partner', 'Finance']);
 
 export function jarForCategory(category: string | null | undefined): CashflowJarDefinition {
-  return JAR_BY_CATEGORY.get(category ?? '') ?? JARS[1];
+  return JAR_BY_CATEGORY.get(category ?? '') ?? JARS[2];
 }
 
 export function isTransferLikeDescription(description: string) {

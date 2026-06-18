@@ -2,14 +2,14 @@ import { SovaBadge, SovaKpiRow, SovaPageHeader } from '@sova/kit';
 import { useEffect, useMemo, useState } from 'react';
 
 import { apiGet } from '../../api/client';
-import type { BudgetRow, FxRate, TransactionItem } from '../../api/types';
+import type { BudgetRow, FxRate, MonthlyTrend, TransactionItem } from '../../api/types';
 import { Card } from '../../components/Card';
 import { EmptyState } from '../../components/EmptyState';
 import { ErrorState } from '../../components/ErrorState';
 import { LoadingState } from '../../components/LoadingState';
 import { PeriodSelector } from '../../components/PeriodSelector';
 import type { AnalyticsPeriod } from '../../config/periods';
-import { CHART_COLORS, preferredCurrency } from '../../lib/chartData';
+import { CHART_COLORS, convertAmount, preferredCurrency } from '../../lib/chartData';
 import { formatCompactMoney, formatMoney } from '../../lib/formatMoney';
 import { usePreferences } from '../../lib/preferences';
 import { buildCashflowSummary, jarForCategory, spendingRowsFromTransactions, type CashflowJarId } from './model';
@@ -18,6 +18,7 @@ interface CashflowData {
   budgets: BudgetRow[];
   rates: FxRate[];
   transactions: TransactionItem[];
+  trend: MonthlyTrend[];
 }
 
 function ratioTone(ratio: number | null) {
@@ -46,12 +47,13 @@ export function CashflowScreen() {
     setError(null);
     async function load() {
       try {
-        const [transactions, budgets, rates] = await Promise.all([
+        const [transactions, budgets, rates, trend] = await Promise.all([
           apiGet<TransactionItem[]>(`/transactions?period=${period}&limit=200`),
           apiGet<BudgetRow[]>('/budgets').catch(() => []),
           apiGet<FxRate[]>('/fx/rates').catch(() => []),
+          apiGet<MonthlyTrend[]>('/transactions/trend?months=12').catch(() => []),
         ]);
-        if (!cancelled) setData({ transactions, budgets, rates });
+        if (!cancelled) setData({ transactions, budgets, rates, trend });
       } catch (caught) {
         if (!cancelled) setError(caught instanceof Error ? caught.message : 'Unknown error');
       }
@@ -70,6 +72,16 @@ export function CashflowScreen() {
   );
   const visibleCategories = selectedJar === 'all' ? summary.categories : summary.categories.filter((row) => row.jarId === selectedJar);
   const visibleTransactions = summary.recentTransactions.filter((tx) => selectedJar === 'all' || jarForCategory(tx.category).id === selectedJar);
+  const monthlyTrend = useMemo(
+    () => (data?.trend ?? []).map((row) => ({
+      ...row,
+      income: convertAmount(row.income, row.currency, chartCurrency, data?.rates ?? []),
+      expenses: convertAmount(row.expenses, row.currency, chartCurrency, data?.rates ?? []),
+      currency: chartCurrency,
+    })),
+    [chartCurrency, data?.rates, data?.trend],
+  );
+  const trendMax = Math.max(...monthlyTrend.flatMap((row) => [row.income, row.expenses]), 1);
   const budgetStatus = summary.budgetRemaining === null
     ? 'No limits yet'
     : summary.budgetRemaining >= 0
@@ -107,6 +119,28 @@ export function CashflowScreen() {
       </div>
 
       <div className="cashflow-report-grid">
+        <Card className="wide" title="Monthly picture" subtitle="Income, expenses, left">
+          {monthlyTrend.length === 0 ? (
+            <EmptyState>No trend yet.</EmptyState>
+          ) : (
+            <div className="trend-list">
+              {monthlyTrend.slice(-12).map((row) => {
+                const left = row.income - row.expenses;
+                return (
+                  <div className="trend-row" key={`${row.month}-${row.currency}`}>
+                    <strong>{row.month}</strong>
+                    <div className="trend-bars">
+                      <span className="income" style={{ width: `${Math.max(4, (row.income / trendMax) * 100)}%` }} />
+                      <span className="expense" style={{ width: `${Math.max(4, (row.expenses / trendMax) * 100)}%` }} />
+                    </div>
+                    <em className={left >= 0 ? 'positive-text' : 'danger-text'}>{formatMoney(left, row.currency)}</em>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </Card>
+
         <Card className="wide" title="Income sources" subtitle="Where money came from">
           {summary.incomeSources.length === 0 ? (
             <EmptyState>No income for this range.</EmptyState>
