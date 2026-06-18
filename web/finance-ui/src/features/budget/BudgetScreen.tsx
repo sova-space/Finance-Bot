@@ -69,12 +69,12 @@ export function BudgetScreen() {
       <Card title="Limits">
         {data.budgets.length === 0 ? <EmptyState>No budget limits yet.</EmptyState> : null}
         {data.budgets.map((budget) => {
-          const ratio = budget.limit > 0 ? Math.min(budget.spent / budget.limit, 1) : 0;
+          const ratio = budget.monthly_limit > 0 ? Math.min(budget.spent / budget.monthly_limit, 1) : 0;
           return (
             <div className="bar-row" key={`${budget.category}-${budget.currency}`}>
               <div className="bar-row-label">
                 <span>{budget.category}</span>
-                <strong>{formatMoney(budget.spent, budget.currency)} / {formatMoney(budget.limit, budget.currency)}</strong>
+                <strong>{formatMoney(budget.spent, budget.currency)} / {formatMoney(budget.monthly_limit, budget.currency)}</strong>
               </div>
               <div className="bar-track">
                 <div className={`bar-fill ${ratioTone(ratio)}`} style={{ width: `${Math.round(ratio * 100)}%` }} />

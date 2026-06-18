@@ -50,9 +50,10 @@ export interface MonthlyTrend {
 export interface BudgetRow {
   category: string;
   currency: string;
-  limit: number;
+  monthly_limit: number;
   spent: number;
   remaining?: number;
+  exceeded?: boolean;
 }
 
 export interface Pocket {
