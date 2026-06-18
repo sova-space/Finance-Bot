@@ -25,11 +25,13 @@ def create_goal(
     account_id: uuid.UUID | None,
     deadline: Any | None,
     notes: str | None,
+    current_amount: float = 0.0,
 ) -> dict[str, Any]:
     """Insert a new goal and return its dict representation."""
     goal = Goal(
         name=name,
         target_amount=target_amount,
+        current_amount=current_amount,
         currency=currency,
         account_id=account_id,
         deadline=deadline,

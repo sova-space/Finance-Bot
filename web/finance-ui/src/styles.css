@@ -262,11 +262,23 @@ h2 {
 .manual-balance-form small { min-width: 76px; font-size: 12px; font-weight: 850; }
 .goal-list { display: grid; gap: 10px; }
 .goal-row { display: grid; grid-template-columns: minmax(150px, 1fr) minmax(160px, 1.2fr) auto; gap: 14px; align-items: center; min-height: 64px; padding: 10px 0; border-bottom: 1px solid rgba(14,15,12,0.07); }
+.goal-row.detailed { grid-template-columns: minmax(150px, 1fr) minmax(160px, 1.2fr) minmax(120px, 0.7fr) minmax(160px, 0.8fr) auto; }
 .goal-row:last-child { border-bottom: 0; }
 .goal-row div:first-child { min-width: 0; display: grid; gap: 3px; }
 .goal-row strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; font-weight: 900; }
 .goal-row span, .goal-progress small { color: var(--muted); font-size: 12px; font-weight: 750; }
 .goal-row em { font-style: normal; font-size: 13px; font-weight: 900; font-variant-numeric: tabular-nums; }
+.goal-form { display: grid; grid-template-columns: minmax(180px, 1fr) 130px 130px 110px 150px auto auto; gap: 10px; align-items: end; }
+.goal-form label { min-width: 0; display: grid; gap: 5px; }
+.goal-form label span { color: var(--muted); font-size: 11px; font-weight: 850; text-transform: uppercase; letter-spacing: 0.08em; }
+.goal-form input, .goal-form select, .goal-saved-editor input { width: 100%; height: 38px; border: 1px solid var(--border); border-radius: 14px; padding: 0 11px; background: rgba(255,255,255,0.82); color: var(--text); font-size: 13px; font-weight: 760; }
+.goal-form button, .goal-saved-editor button { height: 38px; border: 0; border-radius: 999px; padding: 0 16px; background: var(--surface-strong); color: #fff; font-size: 12px; font-weight: 900; cursor: pointer; }
+.goal-form button:disabled, .goal-saved-editor button:disabled { opacity: 0.62; cursor: wait; }
+.goal-pressure { min-width: 0; display: grid; gap: 3px; }
+.goal-pressure strong { font-size: 12px; }
+.goal-saved-editor { min-width: 0; display: grid; grid-template-columns: minmax(90px, 1fr) auto; gap: 6px; align-items: center; }
+.goal-saved-editor small { grid-column: 1 / -1; font-size: 11px; font-weight: 850; }
+.forecast-list { margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(14,15,12,0.07); }
 .goal-progress { display: grid; gap: 6px; }
 .goal-track { height: 7px; overflow: hidden; border-radius: 999px; background: rgba(14,15,12,0.08); }
 .goal-track span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #16a34a, #7ccf58); }
@@ -387,7 +399,7 @@ h2 {
   .hero-grid, .analytics-grid, .monarch-grid { grid-template-columns: 1fr 1fr; }
   .wide { grid-column: 1 / -1; }
   .transactions-layout, .accounts-layout, .cashflow-report-grid { grid-template-columns: 1fr; }
-  .manual-balance-form { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .manual-balance-form, .goal-form { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .metric-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 760px) {
@@ -405,7 +417,7 @@ h2 {
   .transaction-row { grid-template-columns: minmax(0, 1fr) auto; padding: 8px 0; }
   .transaction-row .account-pill { display: none; }
   .search-input { min-width: 0; width: 100%; }
-  .manual-balance-form { grid-template-columns: 1fr; }
+  .manual-balance-form, .goal-form, .goal-row.detailed { grid-template-columns: 1fr; }
   .goal-row { grid-template-columns: 1fr; }
   .net-worth-topline { display: grid; }
 }

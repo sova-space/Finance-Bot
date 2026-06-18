@@ -25,6 +25,7 @@ class GoalCreate(BaseModel):
 
     name: str
     target_amount: float
+    current_amount: float = 0.0
     currency: str = "UAH"
     account_id: uuid.UUID | None = None
     deadline: str | None = None
@@ -57,6 +58,7 @@ def create_goal(body: GoalCreate, session: SessionDep) -> dict:
         session,
         name=body.name,
         target_amount=body.target_amount,
+        current_amount=body.current_amount,
         currency=body.currency,
         account_id=body.account_id,
         deadline=body.deadline,
