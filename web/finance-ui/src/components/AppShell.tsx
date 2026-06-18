@@ -14,10 +14,12 @@ interface AppShellProps {
 
 const NAV_LABEL_KEYS: Record<NavItemId, LabelKey> = {
   overview: 'navOverview',
+  accounts: 'navAccounts',
 };
 
 const TITLE_KEYS: Record<NavItemId, LabelKey> = {
   overview: 'titleOverview',
+  accounts: 'titleAccounts',
 };
 
 const currencies: CurrencyPreference[] = ['auto', 'UAH', 'USD', 'EUR'];

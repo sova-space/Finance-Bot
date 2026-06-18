@@ -29,6 +29,56 @@ class AccountBalance(BaseModel):
         default=None,
         description="ISO timestamp of the last successful sync for this account",
     )
+    spent: float = Field(
+        default=0,
+        description="Selected-month spending for this account",
+    )
+
+
+class ManualBalanceRow(BaseModel):
+    """Manual cash, ownership/asset, or debt row for Accounts."""
+
+    id: str
+    kind: str = Field(description="One of: cash | asset | debt")
+    name: str
+    currency: str
+    amount: float
+    ownership_percent: float = 100.0
+    note: str | None = None
+    updated_at: str | None = None
+
+
+class ManualBalanceCreate(BaseModel):
+    """Create request for a manual Accounts row."""
+
+    kind: str = Field(description="One of: cash | asset | debt")
+    name: str
+    currency: str = "UAH"
+    amount: float = Field(ge=0)
+    ownership_percent: float = Field(default=100.0, ge=0, le=100)
+    note: str | None = None
+
+
+class IncomeTotal(BaseModel):
+    """Income total grouped by currency."""
+
+    currency: str
+    amount: float
+
+
+class EarningsSummary(BaseModel):
+    """Accounts earnings summary."""
+
+    month: list[IncomeTotal]
+    year: list[IncomeTotal]
+
+
+class AccountsSummary(BaseModel):
+    """Category-first Accounts page payload."""
+
+    bank_accounts: list[AccountBalance]
+    manual_balances: list[ManualBalanceRow]
+    earnings: EarningsSummary
 
 
 class TransactionItem(BaseModel):

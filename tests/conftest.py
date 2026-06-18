@@ -15,6 +15,7 @@ os.environ.setdefault("APP_SECRET", "test-app-secret")
 os.environ.setdefault("ENVIRONMENT", "test")
 os.environ.setdefault("TELEGRAM_OWNER_ID", "12345")
 
+from finance_api.domains.accounts.manual_balances import ManualBalance  # noqa: F401
 from finance_api.domains.accounts.models import Account  # noqa: F401
 from finance_api.domains.buy_list.models import BuyListItem  # noqa: F401
 from finance_api.domains.debt.models import Debt  # noqa: F401

@@ -9,6 +9,31 @@ export interface Account {
   synced_at: string | null;
 }
 
+export interface ManualBalance {
+  id: string;
+  kind: 'cash' | 'asset' | 'debt';
+  name: string;
+  currency: string;
+  amount: number;
+  ownership_percent: number;
+  note?: string | null;
+  updated_at?: string | null;
+}
+
+export interface IncomeTotal {
+  currency: string;
+  amount: number;
+}
+
+export interface AccountsSummary {
+  bank_accounts: Account[];
+  manual_balances: ManualBalance[];
+  earnings: {
+    month: IncomeTotal[];
+    year: IncomeTotal[];
+  };
+}
+
 export interface SpendingRow {
   category: string;
   currency: string;

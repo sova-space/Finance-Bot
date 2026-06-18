@@ -8,6 +8,7 @@ from uuid import UUID
 from sqlmodel import Session, func, or_, select
 
 from finance_api.core.db.engine import engine
+from finance_api.domains.accounts.manual_balances import ManualBalance
 from finance_api.domains.accounts.models import Account
 from finance_api.domains.forecast.models import RecurringItem
 from finance_api.domains.insights.periods import (
@@ -146,6 +147,102 @@ def get_account_balances(
             }
             for a in accounts
         ]
+
+
+def _manual_balance_to_dict(row: ManualBalance) -> dict[str, Any]:
+    return {
+        "id": str(row.id),
+        "kind": row.kind,
+        "name": row.name,
+        "currency": row.currency,
+        "amount": row.amount,
+        "ownership_percent": row.ownership_percent,
+        "note": row.note,
+        "updated_at": row.updated_at.isoformat() if row.updated_at else None,
+    }
+
+
+def _income_totals(
+    session: Session,
+    start: date,
+    end: date,
+    user_id: UUID | None = None,
+) -> list[dict[str, Any]]:
+    """Return clean positive income totals grouped by currency."""
+    visible_account_ids_query = select(Account.id).where(Account.hidden == False)  # noqa: E712
+    if user_id is not None:
+        visible_account_ids_query = visible_account_ids_query.where(
+            Account.user_id == user_id
+        )
+    visible_account_ids = list(session.exec(visible_account_ids_query).all())
+    if not visible_account_ids:
+        return []
+
+    q = (
+        select(Transaction.currency, func.sum(Transaction.amount))
+        .where(Transaction.account_id.in_(visible_account_ids))
+        .where(Transaction.date >= start)
+        .where(Transaction.date <= end)
+        .where(Transaction.amount > 0)
+        .where(Transaction.is_pending == False)  # noqa: E712
+        .where(
+            or_(
+                Transaction.category.is_(None),  # type: ignore[union-attr]
+                Transaction.category.notin_(  # type: ignore[union-attr]
+                    [cat.CASHBACK, cat.COUPLE_TRANSFER, cat.PARTNER, cat.FINANCE]
+                ),
+            )
+        )
+        .group_by(Transaction.currency)
+    )
+    rows = session.exec(q).all()
+    return [
+        {"currency": currency, "amount": round(total or 0, 2)}
+        for currency, total in rows
+        if total
+    ]
+
+
+def get_accounts_summary(user_id: UUID | None = None) -> dict[str, Any]:
+    """Return category-first data for the Accounts web tab."""
+    today = date.today()
+    month_start = today.replace(day=1)
+    year_start = today.replace(month=1, day=1)
+    with Session(engine) as session:
+        account_query = select(Account).where(Account.hidden == False)  # noqa: E712
+        manual_query = select(ManualBalance).where(ManualBalance.hidden == False)  # noqa: E712
+        if user_id is not None:
+            account_query = account_query.where(Account.user_id == user_id)
+            manual_query = manual_query.where(ManualBalance.user_id == user_id)
+        accounts = session.exec(account_query).all()
+        manual_balances = session.exec(manual_query).all()
+        kind_order = {"cash": 0, "asset": 1, "debt": 2}
+        manual_balances = sorted(
+            manual_balances,
+            key=lambda row: (kind_order.get(row.kind, 99), row.name.lower()),
+        )
+        return {
+            "bank_accounts": [
+                {
+                    "account_id": str(a.id),
+                    "name": a.name,
+                    "currency": a.currency,
+                    "balance": a.balance,
+                    "spent": 0,
+                    "type": a.account_type,
+                    "is_fop": a.is_fop,
+                    "synced_at": a.synced_at.isoformat() if a.synced_at else None,
+                }
+                for a in accounts
+            ],
+            "manual_balances": [
+                _manual_balance_to_dict(row) for row in manual_balances
+            ],
+            "earnings": {
+                "month": _income_totals(session, month_start, today, user_id=user_id),
+                "year": _income_totals(session, year_start, today, user_id=user_id),
+            },
+        }
 
 
 def get_hidden_account_balances() -> list[dict[str, Any]]:
