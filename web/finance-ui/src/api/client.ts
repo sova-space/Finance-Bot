@@ -37,3 +37,11 @@ export async function apiPatch<T>(path: string, body?: unknown): Promise<T> {
   });
   return parseResponse<T>(response);
 }
+
+export async function apiDelete<T>(path: string): Promise<T> {
+  const response = await fetch(`${getApiBase()}${path}`, {
+    method: 'DELETE',
+    headers: requestHeaders(),
+  });
+  return parseResponse<T>(response);
+}

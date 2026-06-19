@@ -69,6 +69,7 @@ def session(monkeypatch) -> Generator[Session, None, None]:
     import finance_api.domains.rules.queries as rules_module
     import finance_api.domains.sync.monobank as sync_module
     import finance_api.domains.users.queries as users_module
+    import finance_api.routers.accounts as accounts_router
 
     test_engine = _make_test_engine()
 
@@ -77,6 +78,7 @@ def session(monkeypatch) -> Generator[Session, None, None]:
     monkeypatch.setattr(rules_module, "engine", test_engine)
     monkeypatch.setattr(sync_module, "engine", test_engine)
     monkeypatch.setattr(users_module, "engine", test_engine)
+    monkeypatch.setattr(accounts_router, "engine", test_engine)
 
     with Session(test_engine) as s:
         yield s

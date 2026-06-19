@@ -1,7 +1,7 @@
 import { SovaBadge, SovaKpiRow, SovaPageHeader } from '@sova/kit';
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 
-import { apiGet, apiPost } from '../../api/client';
+import { apiDelete, apiGet, apiPatch, apiPost } from '../../api/client';
 import type { Account, AccountsSummary, FxRate, ManualBalance, SpendingRow } from '../../api/types';
 import { Card } from '../../components/Card';
 import { EmptyState } from '../../components/EmptyState';
@@ -50,6 +50,10 @@ const labels = {
     name: 'Name',
     amount: 'Amount',
     add: 'Add',
+    update: 'Update',
+    edit: 'Edit',
+    delete: 'Delete',
+    cancel: 'Cancel',
     saving: 'Saving',
     saved: 'Saved',
     saveFailed: 'Could not save',
@@ -97,6 +101,10 @@ const labels = {
     name: 'Назва',
     amount: 'Сума',
     add: 'Додати',
+    update: 'Оновити',
+    edit: 'Змінити',
+    delete: 'Видалити',
+    cancel: 'Скасувати',
     saving: 'Зберігаю',
     saved: 'Збережено',
     saveFailed: 'Не збереглося',
@@ -127,6 +135,15 @@ const emptyDraft = (currency: string): ManualBalanceDraft => ({
   amount: '',
   ownership_percent: '100',
   note: '',
+});
+
+const draftFromManualBalance = (row: ManualBalance): ManualBalanceDraft => ({
+  kind: row.kind,
+  name: row.name,
+  currency: row.currency,
+  amount: String(row.amount),
+  ownership_percent: String(row.ownership_percent),
+  note: row.note ?? '',
 });
 
 interface AccountsData {
@@ -178,21 +195,121 @@ function AccountList({ accounts, currency, rates, text }: { accounts: Account[];
   );
 }
 
-function ManualList({ empty, rows, currency, rates }: { empty: string; rows: ManualBalance[]; currency: string; rates: FxRate[] }) {
+function ManualList({
+  canEdit = false,
+  currency,
+  empty,
+  onChanged,
+  rates,
+  rows,
+  text,
+}: {
+  canEdit?: boolean;
+  currency: string;
+  empty: string;
+  onChanged?: () => Promise<void>;
+  rates: FxRate[];
+  rows: ManualBalance[];
+  text: AccountsLabels;
+}) {
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [draft, setDraft] = useState<ManualBalanceDraft | null>(null);
+  const [status, setStatus] = useState<Record<string, 'saving' | 'saved' | 'error'>>({});
+
+  function startEdit(row: ManualBalance) {
+    setEditingId(row.id);
+    setDraft(draftFromManualBalance(row));
+  }
+
+  async function saveEdit(row: ManualBalance) {
+    if (!draft || !onChanged) return;
+    setStatus((current) => ({ ...current, [row.id]: 'saving' }));
+    try {
+      await apiPatch<ManualBalance>(`/accounts/manual-balances/${row.id}`, {
+        kind: draft.kind,
+        name: draft.name.trim(),
+        currency: draft.currency,
+        amount: Number(draft.amount),
+        ownership_percent: draft.kind === 'asset' ? Number(draft.ownership_percent) : 100,
+        note: draft.note.trim() || null,
+      });
+      await onChanged();
+      setEditingId(null);
+      setDraft(null);
+      setStatus((current) => ({ ...current, [row.id]: 'saved' }));
+      window.setTimeout(() => setStatus((current) => {
+        const next = { ...current };
+        delete next[row.id];
+        return next;
+      }), 1000);
+    } catch {
+      setStatus((current) => ({ ...current, [row.id]: 'error' }));
+    }
+  }
+
+  async function deleteRow(row: ManualBalance) {
+    if (!onChanged) return;
+    setStatus((current) => ({ ...current, [row.id]: 'saving' }));
+    try {
+      await apiDelete<{ deleted: boolean }>(`/accounts/manual-balances/${row.id}`);
+      await onChanged();
+      setEditingId(null);
+      setDraft(null);
+    } catch {
+      setStatus((current) => ({ ...current, [row.id]: 'error' }));
+    }
+  }
+
   if (rows.length === 0) return <EmptyState>{empty}</EmptyState>;
   return (
     <div className="account-list">
       {rows.map((row) => {
         const value = manualValue(row);
         const displayValue = convertAmount(value, row.currency, currency, rates);
+        const editing = editingId === row.id && draft;
         return (
-          <div className="account-row" key={row.id}>
+          <div className={`account-row ${canEdit ? 'editable' : ''}`} key={row.id}>
             <div className={`account-icon ${row.kind}`}>{row.kind === 'cash' ? '₴' : row.kind === 'asset' ? 'A' : 'D'}</div>
-            <div>
-              <strong>{row.name}</strong>
-              <span>{row.currency}{row.kind === 'asset' && row.ownership_percent !== 100 ? ` · ${row.ownership_percent}%` : ''}</span>
-            </div>
+            {editing ? (
+              <div className="manual-row-editor">
+                <select onChange={(event) => setDraft((current) => current ? { ...current, kind: event.target.value as ManualKind } : current)} value={draft.kind}>
+                  <option value="cash">{text.cashOption}</option>
+                  <option value="asset">{text.assetOption}</option>
+                  <option value="debt">{text.debtOption}</option>
+                </select>
+                <input onChange={(event) => setDraft((current) => current ? { ...current, name: event.target.value } : current)} value={draft.name} />
+                <input min="0" onChange={(event) => setDraft((current) => current ? { ...current, amount: event.target.value } : current)} step="0.01" type="number" value={draft.amount} />
+                <select onChange={(event) => setDraft((current) => current ? { ...current, currency: event.target.value } : current)} value={draft.currency}>
+                  <option value="UAH">UAH</option>
+                  <option value="USD">USD</option>
+                  <option value="EUR">EUR</option>
+                </select>
+                {draft.kind === 'asset' ? <input max="100" min="0" onChange={(event) => setDraft((current) => current ? { ...current, ownership_percent: event.target.value } : current)} step="1" type="number" value={draft.ownership_percent} /> : null}
+                <input onChange={(event) => setDraft((current) => current ? { ...current, note: event.target.value } : current)} placeholder={text.note} value={draft.note} />
+              </div>
+            ) : (
+              <div>
+                <strong>{row.name}</strong>
+                <span>{row.currency}{row.kind === 'asset' && row.ownership_percent !== 100 ? ` · ${row.ownership_percent}%` : ''}</span>
+              </div>
+            )}
             <em className={row.kind === 'debt' ? 'danger-text' : ''}>{formatMoney(displayValue, currency)}</em>
+            {canEdit ? (
+              <div className="manual-row-actions">
+                {editing ? (
+                  <>
+                    <button disabled={status[row.id] === 'saving'} onClick={() => saveEdit(row)} type="button">{status[row.id] === 'saving' ? text.saving : text.update}</button>
+                    <button className="ghost" onClick={() => { setEditingId(null); setDraft(null); }} type="button">{text.cancel}</button>
+                  </>
+                ) : (
+                  <>
+                    <button onClick={() => startEdit(row)} type="button">{text.edit}</button>
+                    <button className="danger" disabled={status[row.id] === 'saving'} onClick={() => deleteRow(row)} type="button">{text.delete}</button>
+                  </>
+                )}
+                {status[row.id] === 'error' ? <small className="danger-text">{text.saveFailed}</small> : null}
+              </div>
+            ) : null}
           </div>
         );
       })}
@@ -440,13 +557,15 @@ export function AccountsScreen() {
           <AccountList accounts={data.summary.bank_accounts} currency={displayCurrency} rates={data.rates} text={text} />
         </Card>
         <Card title={text.cashTitle} subtitle={text.manualCash}>
-          <ManualList empty={text.noCash} rows={cashRows} currency={displayCurrency} rates={data.rates} />
+          <ManualList canEdit empty={text.noCash} onChanged={reloadSummary} rows={cashRows} currency={displayCurrency} rates={data.rates} text={text} />
         </Card>
         <Card title={text.ownershipTitle} subtitle={text.assetsSubtitle}>
-          <ManualList empty={text.noAssets} rows={ownershipRows} currency={displayCurrency} rates={data.rates} />
+          <ManualList canEdit empty={text.noAssets} onChanged={reloadSummary} rows={ownershipRows} currency={displayCurrency} rates={data.rates} text={text} />
         </Card>
         <Card title={text.debtTitle} subtitle={text.debtSubtitle} tone={debtRows.length ? 'warning' : 'default'}>
-          <ManualList empty={text.noDebt} rows={debtRows} currency={displayCurrency} rates={data.rates} />
+          {debtRows.length === 0 ? <EmptyState>{text.noDebt}</EmptyState> : null}
+          {cardDebtRows.length > 0 ? <AccountList accounts={cardDebtRows} currency={displayCurrency} rates={data.rates} text={text} /> : null}
+          {manualDebtRows.length > 0 ? <ManualList canEdit empty={text.noDebt} onChanged={reloadSummary} rows={manualDebtRows} currency={displayCurrency} rates={data.rates} text={text} /> : null}
         </Card>
       </div>
     </section>

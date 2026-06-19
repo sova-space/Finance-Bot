@@ -9,6 +9,8 @@ from finance_api.domains.accounts.models import Account
 from finance_api.domains.insights.queries import get_accounts_summary
 from finance_api.domains.transactions.categories import CASHBACK, INCOME
 from finance_api.domains.transactions.models import Transaction
+from finance_api.routers.accounts import delete_manual_balance, update_manual_balance
+from finance_api.schemas import ManualBalanceCreate
 
 
 def _account(monobank_id: str, balance: float = 0.0, hidden: bool = False) -> Account:
@@ -107,3 +109,37 @@ def test_manual_balance_rejects_unknown_kind() -> None:
         assert "kind" in str(exc)
     else:  # pragma: no cover - explicit failure path
         raise AssertionError("ManualBalance accepted an unsupported kind")
+
+
+def test_manual_balance_can_be_updated_and_deleted(session: Session) -> None:
+    """Manual Accounts rows can be maintained after creation."""
+    row = ManualBalance(kind="cash", name="Cash", currency="UAH", amount=1000)
+    session.add(row)
+    session.commit()
+    session.refresh(row)
+
+    row_id = row.id
+    updated = update_manual_balance(
+        row_id,
+        ManualBalanceCreate(
+            kind="asset",
+            name="Car",
+            currency="USD",
+            amount=9000,
+            ownership_percent=50,
+            note="shared",
+        ),
+    )
+
+    assert updated["id"] == str(row_id)
+    assert updated["kind"] == "asset"
+    assert updated["name"] == "Car"
+    assert updated["amount"] == 9000
+    assert updated["ownership_percent"] == 50
+    assert updated["note"] == "shared"
+
+    deleted = delete_manual_balance(row_id)
+
+    assert deleted == {"deleted": True}
+    session.expire_all()
+    assert session.get(ManualBalance, row_id) is None

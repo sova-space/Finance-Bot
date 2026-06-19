@@ -228,6 +228,7 @@ h2 {
 .account-groups { display: grid; gap: 14px; }
 .account-list { display: grid; gap: 6px; }
 .account-row { min-height: 58px; display: grid; grid-template-columns: 38px minmax(0, 1fr) auto; align-items: center; gap: 12px; border-bottom: 1px solid rgba(14,15,12,0.07); }
+.account-row.editable { grid-template-columns: 38px minmax(0, 1fr) auto auto; }
 .account-row:last-child { border-bottom: 0; }
 .account-row div:not(.account-icon) { min-width: 0; display: grid; gap: 2px; }
 .account-row strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; font-weight: 800; }
@@ -260,6 +261,14 @@ h2 {
 .manual-balance-form button { height: 38px; border: 0; border-radius: 999px; padding: 0 16px; background: var(--surface-strong); color: #fff; font-size: 12px; font-weight: 900; cursor: pointer; }
 .manual-balance-form button:disabled { opacity: 0.62; cursor: wait; }
 .manual-balance-form small { min-width: 76px; font-size: 12px; font-weight: 850; }
+.manual-row-editor { display: grid; grid-template-columns: 110px minmax(120px, 1fr) 100px 90px 90px minmax(120px, 1fr); gap: 6px; }
+.manual-row-editor input, .manual-row-editor select { min-width: 0; width: 100%; height: 34px; border: 1px solid var(--border); border-radius: 12px; padding: 0 9px; background: rgba(255,255,255,0.82); color: var(--text); font-size: 12px; font-weight: 760; }
+.manual-row-actions { display: flex !important; align-items: center; justify-content: flex-end; gap: 6px; }
+.manual-row-actions button { height: 32px; border: 0; border-radius: 999px; padding: 0 11px; background: var(--surface-strong); color: #fff; font-size: 11px; font-weight: 900; cursor: pointer; }
+.manual-row-actions button.ghost { border: 1px solid var(--border); background: rgba(255,255,255,0.72); color: var(--text); }
+.manual-row-actions button.danger { background: #b42318; }
+.manual-row-actions button:disabled { opacity: 0.62; cursor: wait; }
+.manual-row-actions small { font-size: 11px; font-weight: 850; }
 .goal-list { display: grid; gap: 10px; }
 .goal-row { display: grid; grid-template-columns: minmax(150px, 1fr) minmax(160px, 1.2fr) auto; gap: 14px; align-items: center; min-height: 64px; padding: 10px 0; border-bottom: 1px solid rgba(14,15,12,0.07); }
 .goal-row.detailed { grid-template-columns: minmax(150px, 1fr) minmax(160px, 1.2fr) minmax(120px, 0.7fr) minmax(160px, 0.8fr) auto; }
@@ -436,6 +445,9 @@ h2 {
   .transaction-row { grid-template-columns: minmax(0, 1fr) auto; padding: 8px 0; }
   .transaction-row .account-pill { display: none; }
   .search-input { min-width: 0; width: 100%; }
+  .account-row.editable { grid-template-columns: 34px minmax(0, 1fr); }
+  .account-row.editable em, .account-row.editable .manual-row-actions { grid-column: 2; justify-content: flex-start; }
+  .manual-row-editor { grid-template-columns: 1fr; }
   .manual-balance-form, .goal-form, .goal-row.detailed, .sorting-row, .budget-editor-row { grid-template-columns: 1fr; }
   .goal-row { grid-template-columns: 1fr; }
   .net-worth-topline { display: grid; }

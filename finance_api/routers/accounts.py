@@ -1,9 +1,13 @@
 """Account balance endpoints."""
 
-from fastapi import APIRouter, HTTPException
+from datetime import UTC, datetime
+from uuid import UUID
+
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlmodel import Session, select
 
+from finance_api.core.auth.webapp import verify_webapp_user
 from finance_api.core.db.engine import engine
 from finance_api.domains.accounts.manual_balances import ManualBalance
 from finance_api.domains.accounts.models import Account
@@ -72,6 +76,7 @@ def accounts_summary() -> dict[str, object]:
     "/manual-balances",
     response_model=ManualBalanceRow,
     summary="Create a manual Accounts row",
+    dependencies=[Depends(verify_webapp_user)],
 )
 def create_manual_balance(body: ManualBalanceCreate) -> dict[str, object]:
     """Create cash, ownership/asset, or debt row for Accounts."""
@@ -84,6 +89,52 @@ def create_manual_balance(body: ManualBalanceCreate) -> dict[str, object]:
         session.commit()
         session.refresh(row)
         return _manual_balance_response(row)
+
+
+@router.patch(
+    "/manual-balances/{balance_id}",
+    response_model=ManualBalanceRow,
+    summary="Update a manual Accounts row",
+    dependencies=[Depends(verify_webapp_user)],
+)
+def update_manual_balance(
+    balance_id: UUID, body: ManualBalanceCreate
+) -> dict[str, object]:
+    """Update cash, ownership/asset, or debt row for Accounts."""
+    with Session(engine) as session:
+        row = session.get(ManualBalance, balance_id)
+        if not row or row.hidden:
+            raise HTTPException(status_code=404, detail="Manual balance not found")
+        for key, value in body.model_dump().items():
+            setattr(row, key, value)
+        row.updated_at = datetime.now(UTC).replace(tzinfo=None)
+        try:
+            row._validate_kind(row.kind)
+            row._validate_amount(row.amount)
+            row._validate_ownership_percent(row.ownership_percent)
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+        session.add(row)
+        session.commit()
+        session.refresh(row)
+        return _manual_balance_response(row)
+
+
+@router.delete(
+    "/manual-balances/{balance_id}",
+    response_model=dict[str, bool],
+    summary="Delete a manual Accounts row",
+    dependencies=[Depends(verify_webapp_user)],
+)
+def delete_manual_balance(balance_id: UUID) -> dict[str, bool]:
+    """Delete a manual Accounts row."""
+    with Session(engine) as session:
+        row = session.get(ManualBalance, balance_id)
+        if not row or row.hidden:
+            raise HTTPException(status_code=404, detail="Manual balance not found")
+        session.delete(row)
+        session.commit()
+        return {"deleted": True}
 
 
 @router.patch(
