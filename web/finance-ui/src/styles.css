@@ -379,6 +379,16 @@ h2 {
 .sorting-row select { height: 36px; border: 1px solid var(--border); border-radius: 14px; padding: 0 10px; background: rgba(255,255,255,0.82); color: var(--text); font-size: 12px; font-weight: 800; }
 .sorting-row button { height: 36px; border: 0; border-radius: 999px; padding: 0 14px; background: var(--surface-strong); color: #fff; font-size: 12px; font-weight: 900; cursor: pointer; }
 .sorting-row button:disabled { opacity: 0.56; cursor: wait; }
+.budget-editor-list { display: grid; gap: 8px; margin-bottom: 14px; }
+.budget-editor-row { min-height: 52px; display: grid; grid-template-columns: minmax(180px, 1fr) 150px auto auto; gap: 10px; align-items: center; border-bottom: 1px solid rgba(14,15,12,0.07); padding: 6px 0; }
+.budget-editor-row:last-child { border-bottom: 0; }
+.budget-editor-row div { min-width: 0; display: grid; gap: 2px; }
+.budget-editor-row strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; font-weight: 850; }
+.budget-editor-row span, .budget-editor-row small { color: var(--muted); font-size: 11px; font-weight: 800; }
+.budget-editor-row input { width: 100%; height: 36px; border: 1px solid var(--border); border-radius: 14px; padding: 0 10px; background: rgba(255,255,255,0.82); color: var(--text); font-size: 12px; font-weight: 800; }
+.budget-editor-row button { height: 36px; border: 0; border-radius: 999px; padding: 0 14px; background: var(--surface-strong); color: #fff; font-size: 12px; font-weight: 900; cursor: pointer; }
+.budget-editor-row button:disabled { opacity: 0.56; cursor: wait; }
+.budget-jar-list { margin-top: 10px; }
 .cashflow-category-list { display: grid; gap: 2px; }
 .cashflow-category-row {
   min-height: 46px;
@@ -426,7 +436,7 @@ h2 {
   .transaction-row { grid-template-columns: minmax(0, 1fr) auto; padding: 8px 0; }
   .transaction-row .account-pill { display: none; }
   .search-input { min-width: 0; width: 100%; }
-  .manual-balance-form, .goal-form, .goal-row.detailed, .sorting-row { grid-template-columns: 1fr; }
+  .manual-balance-form, .goal-form, .goal-row.detailed, .sorting-row, .budget-editor-row { grid-template-columns: 1fr; }
   .goal-row { grid-template-columns: 1fr; }
   .net-worth-topline { display: grid; }
 }

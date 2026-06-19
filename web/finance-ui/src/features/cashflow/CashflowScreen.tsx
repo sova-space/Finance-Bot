@@ -1,7 +1,7 @@
 import { SovaBadge, SovaKpiRow, SovaPageHeader } from '@sova/kit';
 import { useEffect, useMemo, useState } from 'react';
 
-import { apiGet, apiPatch } from '../../api/client';
+import { apiGet, apiPatch, apiPost } from '../../api/client';
 import type { BudgetRow, FxRate, MonthlyTrend, TransactionItem } from '../../api/types';
 import { Card } from '../../components/Card';
 import { EmptyState } from '../../components/EmptyState';
@@ -43,6 +43,8 @@ export function CashflowScreen() {
   const [error, setError] = useState<string | null>(null);
   const [sortDrafts, setSortDrafts] = useState<Record<string, string>>({});
   const [sortStatus, setSortStatus] = useState<Record<string, 'saving' | 'saved' | 'error'>>({});
+  const [budgetDrafts, setBudgetDrafts] = useState<Record<string, string>>({});
+  const [budgetSaveStatus, setBudgetSaveStatus] = useState<Record<string, 'saving' | 'saved' | 'error'>>({});
 
   useEffect(() => {
     let cancelled = false;
@@ -88,11 +90,60 @@ export function CashflowScreen() {
   const trendMax = Math.max(...monthlyTrend.flatMap((row) => [row.income, row.expenses]), 1);
   const uncategorizedTransactions = (data?.transactions ?? []).filter((tx) => tx.id && tx.amount < 0 && !tx.is_pending && !tx.category);
   const categoryOptions = data?.categories ?? [];
-  const budgetStatus = summary.budgetRemaining === null
-    ? 'No limits yet'
-    : summary.budgetRemaining >= 0
-      ? `${formatCompactMoney(summary.budgetRemaining, chartCurrency)} left`
-      : `${formatCompactMoney(Math.abs(summary.budgetRemaining), chartCurrency)} over`;
+  const categoryBudgetRows = useMemo(() => {
+    const canonicalCategories = new Set(categoryOptions);
+    const budgetMap = new Map((data?.budgets ?? []).map((budget) => [budget.category, budget]));
+    const byCategory = new Map<string, { category: string; spent: number; budget?: BudgetRow }>();
+    if (period === 'this_month') {
+      summary.categories.forEach((row) => {
+        if (!canonicalCategories.has(row.category)) return;
+        byCategory.set(row.category, { category: row.category, spent: row.amount, budget: budgetMap.get(row.category) });
+      });
+    }
+    (data?.budgets ?? []).forEach((budget) => {
+      const budgetSpent = convertAmount(budget.spent, budget.currency, chartCurrency, data?.rates ?? []);
+      byCategory.set(budget.category, { category: budget.category, spent: budgetSpent, budget });
+    });
+    return [...byCategory.values()].sort((a, b) => {
+      const aHasBudget = a.budget ? 1 : 0;
+      const bHasBudget = b.budget ? 1 : 0;
+      return bHasBudget - aHasBudget || b.spent - a.spent || a.category.localeCompare(b.category);
+    });
+  }, [categoryOptions, chartCurrency, data?.budgets, data?.rates, period, summary.categories]);
+  const budgetEditorTotals = categoryBudgetRows.reduce(
+    (totals, row) => {
+      const limit = row.budget ? convertAmount(row.budget.monthly_limit, row.budget.currency, chartCurrency, data?.rates ?? []) : 0;
+      return { limit: totals.limit + limit, spent: totals.spent + row.spent };
+    },
+    { limit: 0, spent: 0 },
+  );
+  const budgetEditorStatus = budgetEditorTotals.limit > 0
+    ? budgetEditorTotals.limit - budgetEditorTotals.spent
+    : null;
+
+  async function saveBudget(category: string, fallbackLimit: number | null) {
+    const rawAmount = budgetDrafts[category] ?? (fallbackLimit === null ? '' : String(fallbackLimit));
+    const amount = Number(rawAmount);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      setBudgetSaveStatus((current) => ({ ...current, [category]: 'error' }));
+      return;
+    }
+    setBudgetSaveStatus((current) => ({ ...current, [category]: 'saving' }));
+    try {
+      await apiPost('/budgets', { category, monthly_limit: amount, currency: chartCurrency });
+      const budgets = await apiGet<BudgetRow[]>('/budgets');
+      setData((current) => (current ? { ...current, budgets } : current));
+      setBudgetDrafts((current) => ({ ...current, [category]: String(amount) }));
+      setBudgetSaveStatus((current) => ({ ...current, [category]: 'saved' }));
+      window.setTimeout(() => setBudgetSaveStatus((current) => {
+        const next = { ...current };
+        delete next[category];
+        return next;
+      }), 1000);
+    } catch {
+      setBudgetSaveStatus((current) => ({ ...current, [category]: 'error' }));
+    }
+  }
 
   async function labelTransaction(tx: TransactionItem) {
     if (!tx.id) return;
@@ -280,29 +331,61 @@ export function CashflowScreen() {
           )}
         </Card>
 
-        <Card className="wide" title="Budget pressure" subtitle="monthly limits by group">
-          <div className="jar-list">
-            {summary.jars.map((jar, index) => {
-              const ratio = jar.ratio === null ? 0 : Math.min(jar.ratio, 1);
+        <Card className="wide" title="Budget editor" subtitle="monthly limits · current-month pressure">
+          <div className="budget-editor-list">
+            {categoryBudgetRows.length === 0 ? <EmptyState>No spending categories yet.</EmptyState> : null}
+            {categoryBudgetRows.slice(0, 12).map((row) => {
+              const limit = row.budget?.monthly_limit ?? null;
+              const draft = budgetDrafts[row.category] ?? (limit === null ? '' : String(limit));
+              const status = budgetSaveStatus[row.category];
+              const convertedLimit = limit === null ? null : convertAmount(limit, row.budget?.currency ?? chartCurrency, chartCurrency, data.rates);
+              const remaining = convertedLimit === null ? null : convertedLimit - row.spent;
               return (
-                <div className="jar-row static" key={jar.id}>
-                  <span className="jar-dot" style={{ background: CHART_COLORS[index % CHART_COLORS.length] }} />
+                <div className="budget-editor-row" key={row.category}>
                   <div>
-                    <strong>{jar.label}</strong>
-                    <small>{jar.limit > 0 ? `${formatCompactMoney(jar.remaining ?? 0, chartCurrency)} left` : 'no limit'}</small>
+                    <strong>{row.category}</strong>
+                    <span>{formatCompactMoney(row.spent, chartCurrency)} spent{remaining === null ? '' : ` · ${formatCompactMoney(remaining, chartCurrency)} left`}</span>
                   </div>
-                  <em>{formatCompactMoney(jar.spent, chartCurrency)}</em>
-                  <div className="jar-track">
-                    <span className={`bar-fill ${ratioTone(jar.ratio)}`} style={{ width: `${Math.round(ratio * 100)}%` }} />
-                  </div>
-                  <small className="jar-limit">
-                    {jar.limit > 0 ? `${formatCompactMoney(jar.spent, chartCurrency)} / ${formatCompactMoney(jar.limit, chartCurrency)}` : 'set budgets to use pressure'}
-                  </small>
+                  <input
+                    min="0"
+                    onChange={(event) => setBudgetDrafts((current) => ({ ...current, [row.category]: event.target.value }))}
+                    placeholder="Monthly limit"
+                    step="0.01"
+                    type="number"
+                    value={draft}
+                  />
+                  <button disabled={status === 'saving'} onClick={() => saveBudget(row.category, limit)} type="button">
+                    {status === 'saving' ? 'Saving' : status === 'saved' ? 'Saved' : limit === null ? 'Set' : 'Update'}
+                  </button>
+                  {status === 'error' ? <small className="danger-text">error</small> : null}
                 </div>
               );
             })}
           </div>
-          <div className="accounts-net-reference"><span>Total</span><strong>{budgetStatus}</strong><em>budgeting section</em></div>
+          {period === 'this_month' ? (
+            <div className="jar-list budget-jar-list">
+              {summary.jars.map((jar, index) => {
+                const ratio = jar.ratio === null ? 0 : Math.min(jar.ratio, 1);
+                return (
+                  <div className="jar-row static" key={jar.id}>
+                    <span className="jar-dot" style={{ background: CHART_COLORS[index % CHART_COLORS.length] }} />
+                    <div>
+                      <strong>{jar.label}</strong>
+                      <small>{jar.limit > 0 ? `${formatCompactMoney(jar.remaining ?? 0, chartCurrency)} left` : 'no limit'}</small>
+                    </div>
+                    <em>{formatCompactMoney(jar.spent, chartCurrency)}</em>
+                    <div className="jar-track">
+                      <span className={`bar-fill ${ratioTone(jar.ratio)}`} style={{ width: `${Math.round(ratio * 100)}%` }} />
+                    </div>
+                    <small className="jar-limit">
+                      {jar.limit > 0 ? `${formatCompactMoney(jar.spent, chartCurrency)} / ${formatCompactMoney(jar.limit, chartCurrency)}` : 'set budgets to use pressure'}
+                    </small>
+                  </div>
+                );
+              })}
+            </div>
+          ) : <EmptyState>Budget pressure is monthly. Switch range to Month to compare current spending with limits.</EmptyState>}
+          <div className="accounts-net-reference"><span>Total</span><strong>{budgetEditorStatus === null ? 'No limits yet' : budgetEditorStatus >= 0 ? `${formatCompactMoney(budgetEditorStatus, chartCurrency)} left` : `${formatCompactMoney(Math.abs(budgetEditorStatus), chartCurrency)} over`}</strong><em>budgeting section</em></div>
         </Card>
       </div>
     </section>
