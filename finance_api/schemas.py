@@ -84,6 +84,10 @@ class AccountsSummary(BaseModel):
 class TransactionItem(BaseModel):
     """A single bank transaction."""
 
+    id: str | None = Field(
+        default=None,
+        description="Transaction ID for manual updates",
+    )
     date: str = Field(description="Transaction date, ISO format YYYY-MM-DD")
     description: str = Field(
         description="Merchant or transfer description from Monobank"

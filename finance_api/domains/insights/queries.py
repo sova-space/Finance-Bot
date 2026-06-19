@@ -433,6 +433,7 @@ def get_recent_transactions(
         txs = session.exec(q).all()
         return [
             {
+                "id": str(t.id),
                 "date": t.date.isoformat(),
                 "description": t.description,
                 "amount": t.amount,

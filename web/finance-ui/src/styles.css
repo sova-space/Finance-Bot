@@ -370,6 +370,15 @@ h2 {
 .trend-bars span { display: block; height: 6px; min-width: 4px; border-radius: 999px; }
 .trend-bars .income { background: #16a34a; }
 .trend-bars .expense { background: #f97316; }
+.sorting-list { display: grid; gap: 8px; }
+.sorting-row { min-height: 52px; display: grid; grid-template-columns: minmax(180px, 1fr) minmax(150px, 0.45fr) auto auto; gap: 10px; align-items: center; border-bottom: 1px solid rgba(14,15,12,0.07); padding: 6px 0; }
+.sorting-row:last-child { border-bottom: 0; }
+.sorting-row div { min-width: 0; display: grid; gap: 2px; }
+.sorting-row strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; font-weight: 850; }
+.sorting-row span, .sorting-row small { color: var(--muted); font-size: 11px; font-weight: 800; }
+.sorting-row select { height: 36px; border: 1px solid var(--border); border-radius: 14px; padding: 0 10px; background: rgba(255,255,255,0.82); color: var(--text); font-size: 12px; font-weight: 800; }
+.sorting-row button { height: 36px; border: 0; border-radius: 999px; padding: 0 14px; background: var(--surface-strong); color: #fff; font-size: 12px; font-weight: 900; cursor: pointer; }
+.sorting-row button:disabled { opacity: 0.56; cursor: wait; }
 .cashflow-category-list { display: grid; gap: 2px; }
 .cashflow-category-row {
   min-height: 46px;
@@ -417,7 +426,7 @@ h2 {
   .transaction-row { grid-template-columns: minmax(0, 1fr) auto; padding: 8px 0; }
   .transaction-row .account-pill { display: none; }
   .search-input { min-width: 0; width: 100%; }
-  .manual-balance-form, .goal-form, .goal-row.detailed { grid-template-columns: 1fr; }
+  .manual-balance-form, .goal-form, .goal-row.detailed, .sorting-row { grid-template-columns: 1fr; }
   .goal-row { grid-template-columns: 1fr; }
   .net-worth-topline { display: grid; }
 }

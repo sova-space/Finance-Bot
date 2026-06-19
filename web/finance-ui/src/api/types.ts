@@ -83,6 +83,7 @@ export interface ForecastRow {
 }
 
 export interface TransactionItem {
+  id?: string | null;
   date: string;
   description: string;
   amount: number;

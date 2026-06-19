@@ -1,7 +1,7 @@
 import { SovaBadge, SovaKpiRow, SovaPageHeader } from '@sova/kit';
 import { useEffect, useMemo, useState } from 'react';
 
-import { apiGet } from '../../api/client';
+import { apiGet, apiPatch } from '../../api/client';
 import type { BudgetRow, FxRate, MonthlyTrend, TransactionItem } from '../../api/types';
 import { Card } from '../../components/Card';
 import { EmptyState } from '../../components/EmptyState';
@@ -16,6 +16,7 @@ import { buildCashflowSummary, jarForCategory, spendingRowsFromTransactions, typ
 
 interface CashflowData {
   budgets: BudgetRow[];
+  categories: string[];
   rates: FxRate[];
   transactions: TransactionItem[];
   trend: MonthlyTrend[];
@@ -40,6 +41,8 @@ export function CashflowScreen() {
   const [selectedJar, setSelectedJar] = useState<CashflowJarId | 'all'>('all');
   const [data, setData] = useState<CashflowData | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [sortDrafts, setSortDrafts] = useState<Record<string, string>>({});
+  const [sortStatus, setSortStatus] = useState<Record<string, 'saving' | 'saved' | 'error'>>({});
 
   useEffect(() => {
     let cancelled = false;
@@ -47,13 +50,14 @@ export function CashflowScreen() {
     setError(null);
     async function load() {
       try {
-        const [transactions, budgets, rates, trend] = await Promise.all([
+        const [transactions, budgets, rates, trend, categories] = await Promise.all([
           apiGet<TransactionItem[]>(`/transactions?period=${period}&limit=200`),
           apiGet<BudgetRow[]>('/budgets').catch(() => []),
           apiGet<FxRate[]>('/fx/rates').catch(() => []),
           apiGet<MonthlyTrend[]>('/transactions/trend?months=12').catch(() => []),
+          apiGet<string[]>('/transactions/categories').catch(() => []),
         ]);
-        if (!cancelled) setData({ transactions, budgets, rates, trend });
+        if (!cancelled) setData({ transactions, budgets, categories, rates, trend });
       } catch (caught) {
         if (!cancelled) setError(caught instanceof Error ? caught.message : 'Unknown error');
       }
@@ -82,11 +86,38 @@ export function CashflowScreen() {
     [chartCurrency, data?.rates, data?.trend],
   );
   const trendMax = Math.max(...monthlyTrend.flatMap((row) => [row.income, row.expenses]), 1);
+  const uncategorizedTransactions = (data?.transactions ?? []).filter((tx) => tx.id && tx.amount < 0 && !tx.is_pending && !tx.category);
+  const categoryOptions = data?.categories ?? [];
   const budgetStatus = summary.budgetRemaining === null
     ? 'No limits yet'
     : summary.budgetRemaining >= 0
       ? `${formatCompactMoney(summary.budgetRemaining, chartCurrency)} left`
       : `${formatCompactMoney(Math.abs(summary.budgetRemaining), chartCurrency)} over`;
+
+  async function labelTransaction(tx: TransactionItem) {
+    if (!tx.id) return;
+    const category = sortDrafts[tx.id];
+    if (!category) return;
+    setSortStatus((current) => ({ ...current, [tx.id as string]: 'saving' }));
+    try {
+      const updated = await apiPatch<TransactionItem>(`/transactions/${tx.id}/label`, { category });
+      setData((current) => {
+        if (!current) return current;
+        return {
+          ...current,
+          transactions: current.transactions.map((row) => (row.id === tx.id ? { ...row, ...updated } : row)),
+        };
+      });
+      setSortStatus((current) => ({ ...current, [tx.id as string]: 'saved' }));
+      window.setTimeout(() => setSortStatus((current) => {
+        const next = { ...current };
+        delete next[tx.id as string];
+        return next;
+      }), 1000);
+    } catch {
+      setSortStatus((current) => ({ ...current, [tx.id as string]: 'error' }));
+    }
+  }
 
   if (error) return <ErrorState message={error} />;
   if (!data) return <LoadingState />;
@@ -119,6 +150,38 @@ export function CashflowScreen() {
       </div>
 
       <div className="cashflow-report-grid">
+        <Card className="wide" title="Needs sorting" subtitle="Label uncategorized spending and teach future rules">
+          {uncategorizedTransactions.length === 0 ? (
+            <EmptyState>All visible spending is categorized. New unsorted expenses will appear here.</EmptyState>
+          ) : (
+            <div className="sorting-list">
+              {uncategorizedTransactions.slice(0, 8).map((tx) => {
+                const txId = tx.id as string;
+                const status = sortStatus[txId];
+                return (
+                  <div className="sorting-row" key={txId}>
+                    <div>
+                      <strong>{tx.description}</strong>
+                      <span>{tx.date} · {formatMoney(tx.amount, tx.currency)}</span>
+                    </div>
+                    <select
+                      onChange={(event) => setSortDrafts((current) => ({ ...current, [txId]: event.target.value }))}
+                      value={sortDrafts[txId] ?? ''}
+                    >
+                      <option value="">Category</option>
+                      {categoryOptions.map((category) => <option key={category} value={category}>{category}</option>)}
+                    </select>
+                    <button disabled={!sortDrafts[txId] || status === 'saving'} onClick={() => labelTransaction(tx)} type="button">
+                      {status === 'saving' ? 'Saving' : status === 'saved' ? 'Saved' : 'Label'}
+                    </button>
+                    {status === 'error' ? <small className="danger-text">error</small> : null}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </Card>
+
         <Card className="wide" title="Monthly picture" subtitle="Income, expenses, left">
           {monthlyTrend.length === 0 ? (
             <EmptyState>No trend yet.</EmptyState>

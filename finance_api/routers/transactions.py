@@ -3,9 +3,11 @@
 from typing import Literal
 from uuid import UUID
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, HTTPException, Query
+from pydantic import BaseModel
 
 from finance_api.domains.insights import queries
+from finance_api.domains.transactions import labeling
 from finance_api.domains.transactions.categories import ALL as _ALL_CATEGORIES
 from finance_api.schemas import MonthlyTrend, SpendingRow, TransactionItem
 
@@ -19,6 +21,13 @@ Period = Literal[
     "last_90d",
     "this_year",
 ]
+
+
+class TransactionLabelPatch(BaseModel):
+    """Request body for manually labeling a transaction."""
+
+    category: str
+    notes: str | None = None
 
 
 @router.get(
@@ -67,6 +76,29 @@ def list_transactions(
     return queries.get_recent_transactions(
         limit=limit, period=period, account_id=account_id
     )
+
+
+@router.patch(
+    "/{transaction_id}/label",
+    response_model=TransactionItem,
+    summary="Label a transaction",
+    description=(
+        "Assigns a canonical category to one transaction and remembers the receiver "
+        "so similar future transactions can be autolabeled."
+    ),
+)
+def label_transaction(
+    transaction_id: UUID, body: TransactionLabelPatch
+) -> dict[str, object]:
+    """Manually label one transaction and persist a receiver rule."""
+    try:
+        return labeling.label_transaction_by_id(
+            str(transaction_id), body.category, notes=body.notes
+        )
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "not found" in message.lower() else 400
+        raise HTTPException(status_code=status_code, detail=message) from exc
 
 
 @router.get(
