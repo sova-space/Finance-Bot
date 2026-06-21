@@ -42,11 +42,22 @@ def test_monthly_trend_excludes_fop_card_internal_transfer(session: Session) -> 
     session.add(
         Transaction(
             account_id=account.id,
-            monobank_id="fop-to-card-transfer",
+            monobank_id="fop-usd-to-card-transfer",
             amount=50_000,
             currency="UAH",
             date=today,
             description="З доларового рахунку ФОП для переказу на картку",  # noqa: RUF001
+            category=INCOME,
+        )
+    )
+    session.add(
+        Transaction(
+            account_id=account.id,
+            monobank_id="fop-uah-internal-transfer",
+            amount=40_000,
+            currency="UAH",
+            date=today,
+            description="З гривневого рахунку ФОП",  # noqa: RUF001
             category=INCOME,
         )
     )

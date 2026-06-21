@@ -98,7 +98,8 @@ export function isSpendTransaction(tx: TransactionItem) {
 }
 
 export function isInternalCardTransferDescription(description: string) {
-  return description.toLowerCase().includes('для переказу на картку');
+  const normalized = description.toLowerCase();
+  return normalized.includes('для переказу на картку') || normalized.includes('з гривневого рахунку фоп');
 }
 
 export function isIncomeTransaction(tx: TransactionItem) {

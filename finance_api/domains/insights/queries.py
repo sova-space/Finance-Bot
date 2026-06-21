@@ -393,8 +393,9 @@ def get_monthly_trend(
                 Transaction.category.is_(None),
                 Transaction.category != cat.CASHBACK,
             )
-            not_internal_card_transfer = ~func.lower(Transaction.description).contains(
-                "для переказу на картку"
+            not_internal_card_transfer = ~(
+                func.lower(Transaction.description).contains("для переказу на картку")
+                | Transaction.description.contains("З гривневого рахунку ФОП")  # noqa: RUF001
             )
             income_by_cur = _sums_by_currency(
                 session,
