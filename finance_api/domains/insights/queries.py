@@ -389,8 +389,18 @@ def get_monthly_trend(
 
         with Session(engine) as session:
             start_first = _salary_anchored_start(first, session) if i == 0 else first
+            not_cashback = or_(
+                Transaction.category.is_(None),
+                Transaction.category != cat.CASHBACK,
+            )
+            not_internal_card_transfer = ~func.lower(Transaction.description).contains(
+                "для переказу на картку"
+            )
             income_by_cur = _sums_by_currency(
-                session, start_first, last, Transaction.amount > 0
+                session,
+                start_first,
+                last,
+                (Transaction.amount > 0) & not_cashback & not_internal_card_transfer,
             )
             expenses_by_cur = _sums_by_currency(
                 session, start_first, last, Transaction.amount < 0

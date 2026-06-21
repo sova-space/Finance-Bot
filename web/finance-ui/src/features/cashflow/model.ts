@@ -97,8 +97,12 @@ export function isSpendTransaction(tx: TransactionItem) {
   return tx.amount < 0 && !tx.is_pending && !NON_SPEND_CATEGORIES.has(tx.category ?? '') && !isTransferLikeDescription(tx.description);
 }
 
+export function isInternalCardTransferDescription(description: string) {
+  return description.toLowerCase().includes('для переказу на картку');
+}
+
 export function isIncomeTransaction(tx: TransactionItem) {
-  return tx.amount > 0 && !tx.is_pending && !NON_INCOME_CATEGORIES.has(tx.category ?? '');
+  return tx.amount > 0 && !tx.is_pending && !NON_INCOME_CATEGORIES.has(tx.category ?? '') && !isInternalCardTransferDescription(tx.description);
 }
 
 export function spendingRowsFromTransactions(transactions: TransactionItem[]): SpendingRow[] {
