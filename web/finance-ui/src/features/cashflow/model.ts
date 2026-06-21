@@ -82,7 +82,7 @@ const JAR_BY_CATEGORY = new Map<string, CashflowJarDefinition>(
 );
 
 const NON_SPEND_CATEGORIES = new Set(['Income', 'Cashback', 'Couple Transfer', 'Partner', 'Finance']);
-const NON_INCOME_CATEGORIES = new Set(['Cashback', 'Couple Transfer', 'Partner', 'Finance']);
+const NON_INCOME_CATEGORIES = new Set(['Cashback']);
 
 export function jarForCategory(category: string | null | undefined): CashflowJarDefinition {
   return JAR_BY_CATEGORY.get(category ?? '') ?? JARS[2];
@@ -98,7 +98,7 @@ export function isSpendTransaction(tx: TransactionItem) {
 }
 
 export function isIncomeTransaction(tx: TransactionItem) {
-  return tx.amount > 0 && !tx.is_pending && !NON_INCOME_CATEGORIES.has(tx.category ?? '') && !isTransferLikeDescription(tx.description);
+  return tx.amount > 0 && !tx.is_pending && !NON_INCOME_CATEGORIES.has(tx.category ?? '');
 }
 
 export function spendingRowsFromTransactions(transactions: TransactionItem[]): SpendingRow[] {

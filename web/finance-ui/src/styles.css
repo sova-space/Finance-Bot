@@ -119,6 +119,7 @@ h2 {
 .chart-frame.donut-large { height: 250px; }
 .chart-frame.spending-bars { height: 430px; }
 .chart-frame.account-area { height: 250px; margin-top: 10px; }
+.chart-frame.income-expense-chart { height: 260px; }
 .recharts-wrapper text { font-family: inherit; }
 .recharts-tooltip-wrapper { outline: none; }
 .card-inline-toolbar { display: flex; justify-content: flex-end; margin: -2px 0 8px; }

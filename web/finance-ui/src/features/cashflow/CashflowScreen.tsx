@@ -1,8 +1,9 @@
+import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { SovaBadge, SovaKpiRow, SovaPageHeader } from '@sova/kit';
 import { useEffect, useMemo, useState } from 'react';
 
 import { apiGet, apiPatch, apiPost } from '../../api/client';
-import type { BudgetRow, FxRate, TransactionItem } from '../../api/types';
+import type { BudgetRow, FxRate, MonthlyTrend, TransactionItem } from '../../api/types';
 import { Card } from '../../components/Card';
 import { EmptyState } from '../../components/EmptyState';
 import { ErrorState } from '../../components/ErrorState';
@@ -19,6 +20,7 @@ interface CashflowData {
   categories: string[];
   rates: FxRate[];
   transactions: TransactionItem[];
+  trend: MonthlyTrend[];
 }
 
 function ratioTone(ratio: number | null) {
@@ -52,13 +54,14 @@ export function CashflowScreen() {
     setError(null);
     async function load() {
       try {
-        const [transactions, budgets, rates, categories] = await Promise.all([
+        const [transactions, budgets, rates, trend, categories] = await Promise.all([
           apiGet<TransactionItem[]>(`/transactions?period=${period}&limit=200`),
           apiGet<BudgetRow[]>('/budgets').catch(() => []),
           apiGet<FxRate[]>('/fx/rates').catch(() => []),
+          apiGet<MonthlyTrend[]>('/transactions/trend?months=12').catch(() => []),
           apiGet<string[]>('/transactions/categories').catch(() => []),
         ]);
-        if (!cancelled) setData({ transactions, budgets, categories, rates });
+        if (!cancelled) setData({ transactions, budgets, categories, rates, trend });
       } catch (caught) {
         if (!cancelled) setError(caught instanceof Error ? caught.message : 'Unknown error');
       }
@@ -85,6 +88,16 @@ export function CashflowScreen() {
   const visibleTransactions = categoryTransactions.length > 0
     ? categoryTransactions
     : summary.recentTransactions.filter((tx) => selectedJar === 'all' || jarForCategory(tx.category).id === selectedJar);
+  const monthlyTrend = useMemo(
+    () => (data?.trend ?? []).map((row) => ({
+      ...row,
+      income: convertAmount(row.income, row.currency, chartCurrency, data?.rates ?? []),
+      expenses: convertAmount(row.expenses, row.currency, chartCurrency, data?.rates ?? []),
+      left: convertAmount(row.income - row.expenses, row.currency, chartCurrency, data?.rates ?? []),
+      currency: chartCurrency,
+    })),
+    [chartCurrency, data?.rates, data?.trend],
+  );
   const uncategorizedTransactions = (data?.transactions ?? []).filter((tx) => tx.id && tx.amount < 0 && !tx.is_pending && !tx.category);
   const categoryOptions = data?.categories ?? [];
   const categoryBudgetRows = useMemo(() => {
@@ -226,6 +239,25 @@ export function CashflowScreen() {
                   </div>
                 );
               })}
+            </div>
+          )}
+        </Card>
+
+        <Card className="wide" title="Monthly income" subtitle="Income and expenses by month">
+          {monthlyTrend.length === 0 ? (
+            <EmptyState>No monthly data yet.</EmptyState>
+          ) : (
+            <div className="chart-frame income-expense-chart">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={monthlyTrend.slice(-12)} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+                  <CartesianGrid stroke="rgba(14,15,12,0.08)" vertical={false} />
+                  <XAxis dataKey="month" tickLine={false} axisLine={false} tick={{ fontSize: 11, fill: '#6b7067', fontWeight: 800 }} />
+                  <YAxis tickFormatter={(value) => formatCompactMoney(Number(value), chartCurrency)} tickLine={false} axisLine={false} tick={{ fontSize: 11, fill: '#6b7067', fontWeight: 800 }} width={54} />
+                  <Tooltip formatter={(value, name) => [formatMoney(Number(value), chartCurrency), name === 'income' ? 'Income' : name === 'expenses' ? 'Expenses' : 'Left']} contentStyle={{ borderRadius: 18 }} />
+                  <Bar dataKey="income" fill="#16a34a" radius={[8, 8, 0, 0]} />
+                  <Bar dataKey="expenses" fill="#f97316" radius={[8, 8, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
             </div>
           )}
         </Card>
