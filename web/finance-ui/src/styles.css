@@ -411,8 +411,16 @@ h2 {
   grid-template-columns: 10px minmax(0, 1fr) auto 42px;
   gap: 10px;
   align-items: center;
+  border: 0;
   border-bottom: 1px solid rgba(14,15,12,0.07);
+  background: transparent;
+  color: inherit;
+  padding: 0;
+  text-align: left;
 }
+button.cashflow-category-row { cursor: pointer; border-radius: 14px; padding: 0 8px; }
+button.cashflow-category-row:hover, button.cashflow-category-row.active { background: rgba(14,15,12,0.045); }
+button.cashflow-category-row.active { box-shadow: inset 0 0 0 1px rgba(14,15,12,0.08); }
 .cashflow-category-row:last-child { border-bottom: 0; }
 .cashflow-category-row div { min-width: 0; display: grid; gap: 1px; }
 .cashflow-category-row strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; font-weight: 850; }

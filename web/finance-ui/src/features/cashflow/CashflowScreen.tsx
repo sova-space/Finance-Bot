@@ -2,7 +2,7 @@ import { SovaBadge, SovaKpiRow, SovaPageHeader } from '@sova/kit';
 import { useEffect, useMemo, useState } from 'react';
 
 import { apiGet, apiPatch, apiPost } from '../../api/client';
-import type { BudgetRow, FxRate, MonthlyTrend, TransactionItem } from '../../api/types';
+import type { BudgetRow, FxRate, TransactionItem } from '../../api/types';
 import { Card } from '../../components/Card';
 import { EmptyState } from '../../components/EmptyState';
 import { ErrorState } from '../../components/ErrorState';
@@ -12,14 +12,13 @@ import type { AnalyticsPeriod } from '../../config/periods';
 import { CHART_COLORS, convertAmount, preferredCurrency } from '../../lib/chartData';
 import { formatCompactMoney, formatMoney } from '../../lib/formatMoney';
 import { usePreferences } from '../../lib/preferences';
-import { buildCashflowSummary, jarForCategory, spendingRowsFromTransactions, type CashflowJarId } from './model';
+import { buildCashflowSummary, isIncomeTransaction, isSpendTransaction, jarForCategory, spendingRowsFromTransactions, type CashflowJarId } from './model';
 
 interface CashflowData {
   budgets: BudgetRow[];
   categories: string[];
   rates: FxRate[];
   transactions: TransactionItem[];
-  trend: MonthlyTrend[];
 }
 
 function ratioTone(ratio: number | null) {
@@ -39,6 +38,7 @@ export function CashflowScreen() {
   const { currency } = usePreferences();
   const [period, setPeriod] = useState<AnalyticsPeriod>('this_month');
   const [selectedJar, setSelectedJar] = useState<CashflowJarId | 'all'>('all');
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [data, setData] = useState<CashflowData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [sortDrafts, setSortDrafts] = useState<Record<string, string>>({});
@@ -52,14 +52,13 @@ export function CashflowScreen() {
     setError(null);
     async function load() {
       try {
-        const [transactions, budgets, rates, trend, categories] = await Promise.all([
+        const [transactions, budgets, rates, categories] = await Promise.all([
           apiGet<TransactionItem[]>(`/transactions?period=${period}&limit=200`),
           apiGet<BudgetRow[]>('/budgets').catch(() => []),
           apiGet<FxRate[]>('/fx/rates').catch(() => []),
-          apiGet<MonthlyTrend[]>('/transactions/trend?months=12').catch(() => []),
           apiGet<string[]>('/transactions/categories').catch(() => []),
         ]);
-        if (!cancelled) setData({ transactions, budgets, categories, rates, trend });
+        if (!cancelled) setData({ transactions, budgets, categories, rates });
       } catch (caught) {
         if (!cancelled) setError(caught instanceof Error ? caught.message : 'Unknown error');
       }
@@ -77,17 +76,15 @@ export function CashflowScreen() {
     [chartCurrency, data?.budgets, data?.rates, data?.transactions],
   );
   const visibleCategories = selectedJar === 'all' ? summary.categories : summary.categories.filter((row) => row.jarId === selectedJar);
-  const visibleTransactions = summary.recentTransactions.filter((tx) => selectedJar === 'all' || jarForCategory(tx.category).id === selectedJar);
-  const monthlyTrend = useMemo(
-    () => (data?.trend ?? []).map((row) => ({
-      ...row,
-      income: convertAmount(row.income, row.currency, chartCurrency, data?.rates ?? []),
-      expenses: convertAmount(row.expenses, row.currency, chartCurrency, data?.rates ?? []),
-      currency: chartCurrency,
-    })),
-    [chartCurrency, data?.rates, data?.trend],
-  );
-  const trendMax = Math.max(...monthlyTrend.flatMap((row) => [row.income, row.expenses]), 1);
+  const activeCategory = selectedCategory && visibleCategories.some((row) => row.category === selectedCategory) ? selectedCategory : visibleCategories[0]?.category ?? null;
+  const incomeTransactions = (data?.transactions ?? []).filter(isIncomeTransaction);
+  const spendTransactions = (data?.transactions ?? []).filter(isSpendTransaction);
+  const categoryTransactions = activeCategory
+    ? spendTransactions.filter((tx) => (tx.category ?? 'Uncategorized') === activeCategory)
+    : [];
+  const visibleTransactions = categoryTransactions.length > 0
+    ? categoryTransactions
+    : summary.recentTransactions.filter((tx) => selectedJar === 'all' || jarForCategory(tx.category).id === selectedJar);
   const uncategorizedTransactions = (data?.transactions ?? []).filter((tx) => tx.id && tx.amount < 0 && !tx.is_pending && !tx.category);
   const categoryOptions = data?.categories ?? [];
   const categoryBudgetRows = useMemo(() => {
@@ -178,8 +175,8 @@ export function CashflowScreen() {
       <div className="sova-surface-band finance-operator-band">
         <SovaPageHeader
           eyebrow="finance"
-          title="Spending"
-          description={`Income, expenses, groups · ${periodLabel(period)} · ${chartCurrency}`}
+          title="Income & Expenses"
+          description={`Income transactions, expense categories · ${periodLabel(period)} · ${chartCurrency}`}
           meta={<SovaBadge tone={summary.leftAfterSpend >= 0 ? 'good' : 'bad'}>{summary.leftAfterSpend >= 0 ? 'within income' : 'over income'}</SovaBadge>}
         />
         <SovaKpiRow
@@ -233,24 +230,21 @@ export function CashflowScreen() {
           )}
         </Card>
 
-        <Card className="wide" title="Monthly picture" subtitle="Income, expenses, left">
-          {monthlyTrend.length === 0 ? (
-            <EmptyState>No trend yet.</EmptyState>
+        <Card className="wide" title="Income transactions" subtitle="Actual money received in this range">
+          {incomeTransactions.length === 0 ? (
+            <EmptyState>No income transactions for this range.</EmptyState>
           ) : (
-            <div className="trend-list">
-              {monthlyTrend.slice(-12).map((row) => {
-                const left = row.income - row.expenses;
-                return (
-                  <div className="trend-row" key={`${row.month}-${row.currency}`}>
-                    <strong>{row.month}</strong>
-                    <div className="trend-bars">
-                      <span className="income" style={{ width: `${Math.max(4, (row.income / trendMax) * 100)}%` }} />
-                      <span className="expense" style={{ width: `${Math.max(4, (row.expenses / trendMax) * 100)}%` }} />
-                    </div>
-                    <em className={left >= 0 ? 'positive-text' : 'danger-text'}>{formatMoney(left, row.currency)}</em>
+            <div className="transaction-mini-table income-transaction-list">
+              {incomeTransactions.slice(0, 12).map((tx, index) => (
+                <div className="mini-tx-row" key={`${tx.id ?? tx.date}-${tx.description}-${index}`}>
+                  <div>
+                    <strong>{tx.description}</strong>
+                    <span>{tx.category ?? 'Income'} · {tx.date}</span>
                   </div>
-                );
-              })}
+                  <span className="category-pill income">Income</span>
+                  <em className="positive">{formatMoney(tx.amount, tx.currency)}</em>
+                </div>
+              ))}
             </div>
           )}
         </Card>
@@ -292,27 +286,31 @@ export function CashflowScreen() {
           <button className="soft-button cashflow-clear" onClick={() => setSelectedJar('all')} type="button">All groups</button>
         </Card>
 
-        <Card className="wide" title="Where money went" subtitle={selectedJar === 'all' ? 'All groups' : summary.jars.find((jar) => jar.id === selectedJar)?.label}>
+        <Card className="wide" title="Expense categories" subtitle="Pick a category to see its transactions">
           {visibleCategories.length === 0 ? (
             <EmptyState>No spending for this range.</EmptyState>
           ) : (
-            <div className="cashflow-category-list">
-              {visibleCategories.map((row, index) => (
-                <div className="cashflow-category-row" key={`${row.category}-${row.currency}`}>
-                  <span className="cashflow-color" style={{ background: CHART_COLORS[index % CHART_COLORS.length] }} />
-                  <div>
-                    <strong>{row.category}</strong>
-                    <small>{row.jarLabel}</small>
-                  </div>
-                  <em>{formatMoney(row.amount, row.currency)}</em>
-                  <small>{Math.round(row.share)}%</small>
-                </div>
-              ))}
+            <div className="cashflow-category-list category-picker-list">
+              {visibleCategories.map((row, index) => {
+                const active = activeCategory === row.category;
+                const count = spendTransactions.filter((tx) => (tx.category ?? 'Uncategorized') === row.category).length;
+                return (
+                  <button className={`cashflow-category-row category-picker-row ${active ? 'active' : ''}`} key={`${row.category}-${row.currency}`} onClick={() => setSelectedCategory(row.category)} type="button">
+                    <span className="cashflow-color" style={{ background: CHART_COLORS[index % CHART_COLORS.length] }} />
+                    <div>
+                      <strong>{row.category}</strong>
+                      <small>{row.jarLabel} · {count} tx</small>
+                    </div>
+                    <em>{formatMoney(row.amount, row.currency)}</em>
+                    <small>{Math.round(row.share)}%</small>
+                  </button>
+                );
+              })}
             </div>
           )}
         </Card>
 
-        <Card title="Transactions" subtitle="recent, cleaned">
+        <Card title="Category transactions" subtitle={activeCategory ?? 'recent, cleaned'}>
           {visibleTransactions.length === 0 ? (
             <EmptyState>No transactions.</EmptyState>
           ) : (
