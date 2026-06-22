@@ -75,7 +75,7 @@ if [ ! -s "$HERMES_HOME/auth.json" ]; then
   echo "Codex OAuth missing at $HERMES_HOME/auth.json; dashboard will start, gateway may fail until auth is uploaded." >&2
 fi
 
-uvicorn finance_api.main:app --host 127.0.0.1 --port "$FINANCE_API_PORT" &
+env TELEGRAM_BOT_TOKEN= uvicorn finance_api.main:app --host 127.0.0.1 --port "$FINANCE_API_PORT" &
 finance_pid=$!
 
 hermes dashboard \
