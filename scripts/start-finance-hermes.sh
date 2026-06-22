@@ -86,14 +86,28 @@ hermes dashboard \
   --skip-build &
 dashboard_pid=$!
 
-hermes gateway run --replace --accept-hooks &
+run_gateway() {
+  while true; do
+    hermes gateway run --replace --accept-hooks
+    code=$?
+    echo "Hermes gateway exited with code ${code}; restarting in 5s" >&2
+    sleep 5
+  done
+}
+run_gateway &
 gateway_pid=$!
 
+node scripts/route-server.mjs &
+route_pid=$!
+
 shutdown() {
-  kill "$finance_pid" "$dashboard_pid" "$gateway_pid" 2>/dev/null || true
+  kill "$finance_pid" "$dashboard_pid" "$gateway_pid" "$route_pid" 2>/dev/null || true
 }
 trap shutdown EXIT INT TERM
 
 echo "Starting native Finance Hermes gateway: session=${HERMES_CONTINUE_SESSION} provider=${HERMES_PROVIDER} model=${HERMES_MODEL}"
 echo "Starting Finance web app: /app -> 127.0.0.1:${FINANCE_API_PORT}; Hermes: /hermes -> ${HERMES_DASHBOARD_HOST}:${HERMES_DASHBOARD_PORT}"
-exec node scripts/route-server.mjs
+wait -n "$finance_pid" "$dashboard_pid" "$route_pid"
+exit_code=$?
+shutdown
+exit "$exit_code"

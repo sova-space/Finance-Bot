@@ -21,6 +21,7 @@ ENV HERMES_CONTINUE_SESSION=finance-bot
 WORKDIR /app
 COPY . .
 RUN /opt/hermes/bin/pip install --no-cache-dir . \
+    && cp scripts/sitecustomize.py "$(/opt/hermes/bin/python -c 'import sysconfig; print(sysconfig.get_path("purelib"))')/sitecustomize.py" \
     && cd web/finance-ui \
     && npm ci \
     && npm run build \
