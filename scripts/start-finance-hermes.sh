@@ -5,8 +5,10 @@ export HERMES_HOME="${HERMES_HOME:-/data/.hermes}"
 export HERMES_PROVIDER="${HERMES_PROVIDER:-openai-codex}"
 export HERMES_MODEL="${HERMES_MODEL:-gpt-5.5}"
 export HERMES_CONTINUE_SESSION="${HERMES_CONTINUE_SESSION:-finance-bot}"
-export HERMES_DASHBOARD_PORT="${PORT:-${HERMES_DASHBOARD_PORT:-8080}}"
-export HERMES_DASHBOARD_HOST="${HERMES_DASHBOARD_HOST:-0.0.0.0}"
+export PUBLIC_PORT="${PORT:-8080}"
+export FINANCE_API_PORT="${FINANCE_API_PORT:-9100}"
+export HERMES_DASHBOARD_PORT="${HERMES_DASHBOARD_PORT:-9121}"
+export HERMES_DASHBOARD_HOST="${HERMES_DASHBOARD_HOST:-127.0.0.1}"
 
 mkdir -p "$HERMES_HOME"
 
@@ -73,6 +75,9 @@ if [ ! -s "$HERMES_HOME/auth.json" ]; then
   echo "Codex OAuth missing at $HERMES_HOME/auth.json; dashboard will start, gateway may fail until auth is uploaded." >&2
 fi
 
+uvicorn finance_api.main:app --host 127.0.0.1 --port "$FINANCE_API_PORT" &
+finance_pid=$!
+
 hermes dashboard \
   --host "$HERMES_DASHBOARD_HOST" \
   --port "$HERMES_DASHBOARD_PORT" \
@@ -81,10 +86,14 @@ hermes dashboard \
   --skip-build &
 dashboard_pid=$!
 
+hermes gateway run --replace --accept-hooks &
+gateway_pid=$!
+
 shutdown() {
-  kill "$dashboard_pid" 2>/dev/null || true
+  kill "$finance_pid" "$dashboard_pid" "$gateway_pid" 2>/dev/null || true
 }
 trap shutdown EXIT INT TERM
 
 echo "Starting native Finance Hermes gateway: session=${HERMES_CONTINUE_SESSION} provider=${HERMES_PROVIDER} model=${HERMES_MODEL}"
-exec hermes gateway run --replace --accept-hooks
+echo "Starting Finance web app: /app -> 127.0.0.1:${FINANCE_API_PORT}; Hermes: /hermes -> ${HERMES_DASHBOARD_HOST}:${HERMES_DASHBOARD_PORT}"
+exec node scripts/route-server.mjs

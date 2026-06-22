@@ -20,6 +20,11 @@ ENV HERMES_CONTINUE_SESSION=finance-bot
 
 WORKDIR /app
 COPY . .
+RUN /opt/hermes/bin/pip install --no-cache-dir . \
+    && cd web/finance-ui \
+    && npm ci \
+    && npm run build \
+    && rm -rf node_modules
 RUN chmod +x scripts/start-finance-hermes.sh
 
 EXPOSE 8080
