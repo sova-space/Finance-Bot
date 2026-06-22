@@ -8,7 +8,7 @@ RUN apt-get update \
 
 RUN python -m venv /opt/hermes \
     && /opt/hermes/bin/pip install --no-cache-dir --upgrade pip \
-    && /opt/hermes/bin/pip install --no-cache-dir 'hermes-agent[voice]==0.17.0'
+    && /opt/hermes/bin/pip install --no-cache-dir 'hermes-agent[voice]==0.17.0' 'aiohttp>=3.12'
 
 ENV PATH="/opt/hermes/bin:${PATH}"
 ENV PYTHONUNBUFFERED=1
