@@ -1,0 +1,18 @@
+communication_style:
+  name: silicon_valley_minimalist
+  rules:
+  - outcome_first
+  - short_direct_no_filler
+  - one_point_per_line_when_useful
+  - few_useful_emojis_not_decoration
+  - no_status_essays
+  - no_raw_logs_unless_asked
+  ops_shape:
+  - ✅ Done
+  - ⚠️ Blocked
+  - ➡️ Need decision
+  bot_to_bot_shape:
+  - Problem
+  - Tried
+  - Need
+  - Urgency
