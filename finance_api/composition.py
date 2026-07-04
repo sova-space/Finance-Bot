@@ -1,6 +1,7 @@
 """FastAPI application factory."""
 
 import asyncio
+import os
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -131,7 +132,8 @@ def create_app() -> FastAPI:
     )
 
     bot_app = None
-    if settings.telegram_bot_token:
+    telegram_polling_enabled = os.getenv("FINANCE_SERVICE_ROLE", "all") != "core"
+    if settings.telegram_bot_token and telegram_polling_enabled:
         from finance_api.domains.bot.runner import create_bot
 
         bot_app = create_bot(settings.telegram_bot_token)
