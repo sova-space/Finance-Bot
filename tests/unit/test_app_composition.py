@@ -11,8 +11,9 @@ def test_create_app_returns_fastapi_instance() -> None:
 
     assert isinstance(app, FastAPI)
 
-    # Collect all registered route paths
-    paths = {route.path for route in app.routes}  # type: ignore[attr-defined]
+    # Collect all registered route paths. FastAPI/Starlette internals can wrap
+    # included routers differently across versions; OpenAPI is the stable view.
+    paths = set(app.openapi()["paths"])
 
     # Phase 3 routes are present
     assert "/debts" in paths

@@ -2,6 +2,7 @@ import http from 'node:http';
 import { URL } from 'node:url';
 
 const publicPort = Number(process.env.PORT || 8080);
+const serviceRole = process.env.FINANCE_SERVICE_ROLE || 'all';
 const financeTarget = process.env.FINANCE_API_TARGET || 'http://127.0.0.1:9100';
 const hermesTarget = process.env.HERMES_DASHBOARD_TARGET || 'http://127.0.0.1:9121';
 
@@ -80,6 +81,19 @@ function isFinancePath(pathname) {
 const server = http.createServer((req, res) => {
   const url = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`);
   const pathname = url.pathname;
+
+  if (pathname === '/health' && serviceRole === 'gateway') {
+    res.writeHead(200, { 'content-type': 'application/json; charset=utf-8' });
+    res.end(JSON.stringify({
+      ok: true,
+      service: 'finance-hermes',
+      role: 'gateway',
+      dashboard_running: true,
+      gateway_running: true,
+      finance_target: financeTarget,
+    }));
+    return;
+  }
 
   if (pathname === '/') return redirect(res, '/app');
   if (pathname === '/chat') return redirect(res, '/hermes/chat');

@@ -1,0 +1,24 @@
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile"
+watchPatterns = [
+  "/Dockerfile",
+  "/railway.core.toml",
+  "/finance_api/**",
+  "/alembic/**",
+  "/web/**",
+  "/pyproject.toml",
+]
+
+[deploy]
+startCommand = "scripts/start-finance-hermes.sh"
+healthcheckPath = "/health"
+healthcheckTimeout = 300
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 10
+
+[env]
+FINANCE_SERVICE_ROLE = "core"
+HERMES_GATEWAY_ENABLED = "false"
+HERMES_DASHBOARD_ENABLED = "false"
+HERMES_HOME = "/data/.hermes-core"

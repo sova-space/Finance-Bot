@@ -14,6 +14,7 @@ os.environ.setdefault("MONOBANK_TOKEN", "test_token")
 os.environ.setdefault("APP_SECRET", "test-app-secret")
 os.environ.setdefault("ENVIRONMENT", "test")
 os.environ.setdefault("TELEGRAM_OWNER_ID", "12345")
+os.environ.setdefault("OPENROUTER_API_KEY", "test_openrouter_key")
 
 from finance_api.domains.accounts.manual_balances import ManualBalance  # noqa: F401
 from finance_api.domains.accounts.models import Account  # noqa: F401

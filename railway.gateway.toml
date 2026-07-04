@@ -1,0 +1,28 @@
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile"
+watchPatterns = [
+  "/Dockerfile",
+  "/railway.gateway.toml",
+  "/scripts/start-finance-hermes.sh",
+  "/scripts/route-server.mjs",
+  "/SOUL.md",
+  "/plugins/**",
+  "/skills/**",
+  "/pyproject.toml",
+]
+
+[deploy]
+startCommand = "scripts/start-finance-hermes.sh"
+healthcheckPath = "/health"
+healthcheckTimeout = 300
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 10
+
+[env]
+FINANCE_SERVICE_ROLE = "gateway"
+HERMES_GATEWAY_ENABLED = "true"
+HERMES_DASHBOARD_ENABLED = "true"
+FINANCE_GATEWAY_EMBED_API = "false"
+FINANCE_API_TARGET = "http://finance-core.railway.internal:8080"
+HERMES_HOME = "/data/.hermes-gateway"
