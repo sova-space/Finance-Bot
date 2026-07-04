@@ -34,6 +34,7 @@ from finance_api.routers import (
     transactions,
     trips,
 )
+from finance_api.routers import operator as operator_router
 from finance_api.routers.forecast import (
     forecast_router,
     income_router,
@@ -171,6 +172,7 @@ def create_app() -> FastAPI:
     )
 
     app.include_router(health.router, tags=["health"])
+    app.include_router(operator_router.router, tags=["operator"])
     app.include_router(dashboard.router, tags=["dashboard"])
 
     dashboard_assets_dir = Path(__file__).parent / "static" / "app" / "assets"

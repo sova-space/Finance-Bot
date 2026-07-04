@@ -25,3 +25,6 @@ def test_create_app_returns_fastapi_instance() -> None:
     assert "/income" in paths
     assert "/accounts/summary" in paths
     assert "/accounts/manual-balances" in paths
+    assert "/brief" in paths
+    assert "/blockers" in paths
+    assert "/actions" in paths
