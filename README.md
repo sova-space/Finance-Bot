@@ -35,6 +35,12 @@ Single-user/self-hosted app:
 - one owner Telegram user id
 - one PostgreSQL database
 
+Production Railway lane:
+
+- `finance-bot` — Hermes gateway + Telegram/dashboard, `FINANCE_SERVICE_ROLE=gateway`, `HERMES_GATEWAY_ENABLED=true`, `HERMES_HOME=/data/.hermes`.
+- `finance-core` — Finance API/core runtime, `FINANCE_SERVICE_ROLE=core`, `HERMES_GATEWAY_ENABLED=false`, private target `http://finance-core.railway.internal:8080`.
+- `Postgres` — shared database. Do not delete or mutate schema/data without inspecting migrations and current usage.
+
 Multi-user public bot requires the onboarding/token-storage refactor from `docs/architecture.md`.
 
 ## Local development

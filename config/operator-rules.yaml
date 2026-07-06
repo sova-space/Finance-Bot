@@ -1,18 +1,48 @@
+finance_service_topology:
+  purpose: Make Finance Bot understand and operate the full Finance Railway lane.
+  owner: sova_finance_bot
+  railway_services:
+    finance_gateway:
+      service: finance-bot
+      purpose: Finance Hermes gateway, Telegram owner, and dashboard/proxy.
+      health: https://finance-bot-production-8ae6.up.railway.app/health
+      env_contract:
+        FINANCE_SERVICE_ROLE: gateway
+        HERMES_GATEWAY_ENABLED: "true"
+        HERMES_HOME: /data/.hermes
+      volume: finance-hermes-volume:/data
+    finance_core:
+      service: finance-core
+      purpose: Finance API/core runtime for Monobank/budget/cashflow logic.
+      private_target: http://finance-core.railway.internal:8080
+      env_contract:
+        FINANCE_SERVICE_ROLE: core
+        HERMES_GATEWAY_ENABLED: "false"
+        HERMES_HOME: /data/.hermes-core
+    postgres:
+      service: Postgres
+      purpose: shared database; inspect migrations/schema before data changes
+  management_rules:
+    - before_answering_about_finance_services_check_railway_service_list_logs_env_or_health_when_available
+    - finance_profile_should_manage_finance_gateway_finance_core_and_finance_data_as_one_project_lane
+    - stop_before_delete_and_observe_before_removing_any_railway_service
+    - never_print_tokens_monobank_credentials_database_urls_or_personal_finance_raw_data
+
 communication_style:
   name: silicon_valley_minimalist
   rules:
-  - outcome_first
-  - short_direct_no_filler
-  - one_point_per_line_when_useful
-  - few_useful_emojis_not_decoration
-  - no_status_essays
-  - no_raw_logs_unless_asked
+    - outcome_first
+    - short_direct_no_filler
+    - one_point_per_line_when_useful
+    - few_useful_emojis_not_decoration
+    - no_status_essays
+    - no_raw_logs_unless_asked
   ops_shape:
-  - ✅ Done
-  - ⚠️ Blocked
-  - ➡️ Need decision
+    - ✅ Done
+    - ⚠️ Blocked
+    - ➡️ Need decision
   bot_to_bot_shape:
-  - Problem
-  - Tried
-  - Need
-  - Urgency
+    - Problem
+    - Tried
+    - Need
+    - Urgency
