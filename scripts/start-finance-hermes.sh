@@ -18,6 +18,13 @@ fi
 
 mkdir -p "$HERMES_HOME"
 
+gateway_enabled="${HERMES_GATEWAY_ENABLED:-true}"
+case "${gateway_enabled,,}" in
+  0|false|no|off) gateway_enabled="false" ;;
+  *) gateway_enabled="true" ;;
+esac
+export HERMES_GATEWAY_ENABLED_NORMALIZED="$gateway_enabled"
+
 python - <<'PY'
 from pathlib import Path
 import os
@@ -40,8 +47,9 @@ def merge(a, b):
     return out
 
 token = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
-if not token:
-    raise SystemExit("TELEGRAM_BOT_TOKEN is required")
+gateway_enabled = os.environ.get("HERMES_GATEWAY_ENABLED_NORMALIZED", "true") == "true"
+if gateway_enabled and not token:
+    raise SystemExit("TELEGRAM_BOT_TOKEN is required when HERMES_GATEWAY_ENABLED=true")
 
 desired = {
     "model": {
@@ -49,11 +57,17 @@ desired = {
         "default": os.environ.get("HERMES_MODEL", "gpt-5.5"),
     },
     "telegram": {
-        "enabled": True,
+        "enabled": bool(gateway_enabled and token),
         "bot_token": token,
     },
+    "platforms": {
+        "telegram": {
+            "enabled": bool(gateway_enabled and token),
+            "token": token,
+        }
+    },
     "gateway": {
-        "enabled": True,
+        "enabled": gateway_enabled,
     },
     "memory": {
         "memory_enabled": True,
@@ -105,8 +119,14 @@ run_gateway() {
     sleep 5
   done
 }
-run_gateway &
-gateway_pid=$!
+gateway_pid=""
+if [ "$gateway_enabled" = "true" ]; then
+  run_gateway &
+  gateway_pid=$!
+  echo "Starting native Finance Hermes gateway: session=${HERMES_CONTINUE_SESSION} provider=${HERMES_PROVIDER} model=${HERMES_MODEL}"
+else
+  echo "HERMES_GATEWAY_ENABLED=false; starting Finance web/API proxy only."
+fi
 
 node scripts/route-server.mjs &
 route_pid=$!
@@ -115,11 +135,13 @@ shutdown() {
   if [ -n "${finance_pid:-}" ]; then
     kill "$finance_pid" 2>/dev/null || true
   fi
-  kill "$dashboard_pid" "$gateway_pid" "$route_pid" 2>/dev/null || true
+  if [ -n "${gateway_pid:-}" ]; then
+    kill "$gateway_pid" 2>/dev/null || true
+  fi
+  kill "$dashboard_pid" "$route_pid" 2>/dev/null || true
 }
 trap shutdown EXIT INT TERM
 
-echo "Starting native Finance Hermes gateway: session=${HERMES_CONTINUE_SESSION} provider=${HERMES_PROVIDER} model=${HERMES_MODEL}"
 echo "Starting Finance web app: /app -> 127.0.0.1:${FINANCE_API_PORT}; Hermes: /hermes -> ${HERMES_DASHBOARD_HOST}:${HERMES_DASHBOARD_PORT}"
 if [ -n "${finance_pid:-}" ]; then
   wait -n "$finance_pid" "$dashboard_pid" "$route_pid"
