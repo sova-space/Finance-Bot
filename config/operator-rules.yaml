@@ -41,8 +41,26 @@ communication_style:
     - ✅ Done
     - ⚠️ Blocked
     - ➡️ Need decision
-  bot_to_bot_shape:
-    - Problem
-    - Tried
-    - Need
-    - Urgency
+  brain_coordination_shape:
+    - Brain calls Finance API/runtime bridge
+    - Finance returns structured status/action result
+    - Sova Ops remains human audit only
+
+sova_domain_bridge_contract:
+  purpose: Align Finance with the Sova hub-and-spoke architecture.
+  brain_role:
+    - cross_domain_capture_routing_summaries_and_decisions
+    - does_not_own_finance_data_correctness
+  domain_role:
+    - own_finance_logic_data_tools_secrets_tests_and_runtime_behavior
+  preferred_endpoints:
+    - GET /health
+    - GET /brief
+    - GET /blockers
+    - GET /actions
+    - POST /actions/{id}
+  coordination_rules:
+    - brain_to_finance_uses_runtime_api_or_tool_bridge
+    - do_not_use_telegram_bot_to_bot_as_fallback
+    - sova_ops_is_human_audit_only_for_blockers_decisions_and_shipped_results
+    - healthy_state_is_silent
